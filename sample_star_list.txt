@@ -1,0 +1,25 @@
+# basic objects including only required fields
+197+17.1        07 29 09.40 +20 54 45.90 2000.0
+ring neb        18 53 36.00 +33 02 00.00 2000.0
+
+# star with proper motion
+SAO 102961      17 34 24.13 +11 52 28.29 1950.0 pmra=+0.0001 pmdec=-0.007 vmag=9.0
+
+# non-sideral targets
+Hale-Bopp 5hr   17 30 6.62  -4 41 58.4   APP dra=0.35  ddec=7.3
+Titan   6:00UT  01 05 39.60 +04 00 28.846 APP dra=-0.96 ddec=-4.2
+
+# slitmask with specified rotator position
+Cl0024+16-fld 1 00 24 00.00 +16 00 00.00 2000.0 rotdest=123.45 rotmode=pa
+
+# target observed at parallactic angle
+Herschel101     12 34 56.78 +01 23 45.67 2000.0 rotdest=0.0 rotmode=vertical
+
+# science target with nearby offset stars
+198xq           13 55 45.78  -25 24 03.3  2000.0
+198xq_S1        13 55 46.85  -25 23 46.3  2000.0 raoffset=-14.51 decoffset=-16.99   # 14.51" W,  16.99" S to 198xq
+198xq_S2        13 55 48.26  -25 22 10.6  2000.0 raoffset=-33.61 decoffset=-112.72  # 33.61" W, 112.72" S to 198xq
+198xq_S3        13 55 39.96  -25 21 50.1  2000.0 raoffset=78.83  decoffset=-133.21  # 78.83" E, 133.21" S to 198xq
+
+# test negative declination
+negdec          01 02 03.04  -00 00 30.0  2000.0
