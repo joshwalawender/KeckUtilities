@@ -12,6 +12,7 @@ import logging
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from astropy.table import Table, Row
 
 ##-------------------------------------------------------------------------
 ## Parse Star List Argument
@@ -58,6 +59,16 @@ class StarList():
     def __init__(self, filename, verbose=True):
         self.comments = []
         self.lines = []
+        self.table = Table(names=('name', 'RA', 'Dec', 'equinox', 'pmra',\
+                                  'pmdec', 'dra', 'ddec', 'vmag', 'rotmode',\
+                                  'rotdest', 'wrap', 'raoffset', 'decoffset',\
+                                  ),\
+                           dtype=('a15', 'f4', 'f4', 'f4', 'f4',\
+                                  'f4', 'f4', 'f4', 'f4', 'a15',\
+                                  'f4', 'a15', 'f4', 'f4',\
+                                 ),\
+                           masked=True,\
+                           )
         self.read_from_file(filename, verbose=verbose)
 
     def read_from_file(self, filename, verbose=True):
@@ -66,51 +77,68 @@ class StarList():
 
         with open(filename, 'r') as FO:
             self.lines = FO.readlines()
-            if verbose: print(self.lines)
 
-            for line in self.lines:
-                comment = ''
-                if verbose: print('\n|{}|'.format(line.strip('\n')))
+        for line in self.lines:
+            print()
+            print('## Line: "{}"'.format(line.strip('\n')))
 
-                ## Check for comments
-                commentMO = re.match('(.*)#(.*)\n', line)
-                if commentMO:
-                    line = '{}\n'.format(commentMO.group(1))
-                    comment = commentMO.group(2)
+            ## Check for comments
+            iscomment = re.match('(.*)#(.*)\n', line)
+            if iscomment:
+                line = '{}\n'.format(iscomment.group(1))
+                comment = iscomment.group(2)
 
-                isblank = re.match('^\s*\n', line)
-                if not isblank:
-                    objname = line[0:15].strip()
-                    line_args = line[16:].split()
-                    ## Format coordinate for astropy
-                    coord_string = '{} {} {} {} {} {}'.format(\
-                                    line_args[0], line_args[1], line_args[2],\
-                                    line_args[3], line_args[4], line_args[5],\
-                                    )
-                    ## Format Equinox argument for astropy
-                    equinox_string = line_args[6]
-                    if equinox_string == 'APP':
-                        equniox = Time.now()
+            isblank = re.match('^\s*\n', line)
+            if not isblank:
+
+                objname = line[0:15].strip()
+                line_args = line[16:].split()
+                ## Format coordinate for astropy
+                coord_string = '{} {} {} {} {} {}'.format(\
+                                line_args[0], line_args[1], line_args[2],\
+                                line_args[3], line_args[4], line_args[5],\
+                                )
+                ## Format Equinox argument for astropy
+                equinox_string = line_args[6]
+                if equinox_string == 'APP':
+                    equniox = Time.now()
+                else:
+                    equinox = Time(float(equinox_string), format='jyear')
+
+                c = SkyCoord(coord_string,\
+                             unit=(u.hourangle, u.deg),\
+                             frame='fk5',\
+                             equinox=equinox)
+
+                if verbose:
+                    print('Object Name: "{}"'.format(objname))
+                    print('Coordinates: {}'.format(c.to_string('hmsdms')))
+                    print('Equinox: {}'.format(c.equinox.value))
+
+                star = {'name': objname,\
+                        'RA': c.ra.to(u.degree),\
+                        'Dec': c.dec.to(u.degree),\
+                        'equinox': str(c.equinox),\
+                        }
+
+                ## Parse Optional Arguments
+                for line_arg in line_args[7:]:
+                    arg, value = parse_arg(line_arg)
+                    star[arg] = value
+
+
+                all_args = ['name', 'RA', 'Dec', 'equinox',\
+                            'pmra', 'pmdec', 'dra', 'ddec', 'vmag', 'rotmode',\
+                            'rotdest', 'wrap', 'raoffset', 'decoffset']
+                mask = {}
+                for arg in all_args:
+                    if arg in star.keys():
+                        mask[arg] = False
                     else:
-                        equinox = Time(float(equinox_string), format='jyear')
-                    ## Parse Optional Arguments
-                    for line_arg in line_args[7:]:
-                        arg, value = parse_arg(line_arg)
-                        print('{}: {} = {}'.format(line_arg, arg, value))
-                        
+                        star[arg] = float('nan')
+                        mask[arg] = True
 
-
-                    c = SkyCoord(coord_string,\
-                                 unit=(u.hourangle, u.deg),\
-                                 frame='fk5',\
-                                 equinox=equinox)
-
-
-
-                    if verbose:
-                        print('Object Name: "{}"'.format(objname))
-                        print('Coordinates: {}'.format(c.to_string('hmsdms')))
-                        print('Equinox: {}'.format(c.equinox))
+                self.table.add_row(vals=star, mask=mask)
 
 
 
@@ -161,4 +189,4 @@ def main():
 
 if __name__ == '__main__':
     sl = StarList('sample_star_list.txt')
-    
+    print(sl.table)
