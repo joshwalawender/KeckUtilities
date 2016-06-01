@@ -71,6 +71,7 @@ class Target(object):
                  wrap=None, raoffset=None, decoffset=None,\
                 ):
         self.name = name
+        self.equinox = equinox
         self.comment = comment
         self.pmra = pmra
         self.pmdec = pmdec
@@ -90,21 +91,40 @@ class Target(object):
         if equinox:
             assert type(equinox) == str
             if equinox == 'APP':
-                self.equinox = Time.now()
+                coord_equinox = Time.now()
             else:
-                self.equinox = Time(float(equinox), format='jyear')
+                coord_equinox = Time(float(equinox), format='jyear')
         else:
             ## Assume equinox is J2000
-            self.equniox = Time(float('2000.0'), format='jyear')
+            coord_equinox = Time(float('2000.0'), format='jyear')
 
         if type(coord) == str:
             self.coord = SkyCoord(coord,\
                                   unit=(u.hourangle, u.deg),\
                                   frame='fk5',\
-                                  equinox=self.equinox)
+                                  equinox=coord_equinox)
 
         if type(coord) == SkyCoord:
             self.coord = coord
+
+
+    def dict(self):
+        star = {'name': self.name,\
+                'RA': self.coord.ra.to(u.degree),\
+                'Dec': self.coord.dec.to(u.degree),\
+                'equinox': self.equinox,\
+                'pmra': self.pmra,\
+                'pmdec': self.pmdec,\
+                'dra': self.dra,\
+                'ddec': self.ddec,\
+                'vmag': self.vmag,\
+                'rotmode': self.rotmode,\
+                'rotdest': self.rotdest,\
+                'wrap': self.wrap,\
+                'raoffset': self.raoffset,\
+                'decoffset': self.decoffset,\
+                }
+        return star
 
 
 ##-------------------------------------------------------------------------
@@ -190,23 +210,10 @@ class StarList(object):
 
     def table(self):
         for entry in self.starlist:
-            eq = entry.coord.equinox
-            eq.format = 'jyear'
-            star = {'name': entry.name,\
-                    'RA': entry.coord.ra.to(u.degree),\
-                    'Dec': entry.coord.dec.to(u.degree),\
-                    'equinox': str(eq.value),\
-                    'pmra': entry.pmra,\
-                    'pmdec': entry.pmdec,\
-                    'dra': entry.dra,\
-                    'ddec': entry.ddec,\
-                    'vmag': entry.vmag,\
-                    'rotmode': entry.rotmode,\
-                    'rotdest': entry.rotdest,\
-                    'wrap': entry.wrap,\
-                    'raoffset': entry.raoffset,\
-                    'decoffset': entry.decoffset,\
-                    }
+            star = entry.dict()
+            equinox_float = entry.coord.equinox
+            equinox_float.format = 'jyear'
+            star['equinox'] = equinox_float.value
             mask = {}
             for key in star.keys():
                 if star[key]:
@@ -219,13 +226,14 @@ class StarList(object):
 
 
     def export_to_csv(self, filename):
+        if os.path.exists(filename): os.path.remove(filename)
         with open(filename, 'w') as FO:
             for row in self.table():
                 c = SkyCoord('{} {}'.format(row['RA'], row['Dec']),\
                              unit=(u.deg, u.deg),\
                              frame='fk5',\
                              equinox=Time(float(row['equinox']), format='jyear'))
-                line = '{:15s}, {:s}, {:s}, {:.1f}'.format(\
+                line = '{:15s}, {:s}, {:s}, {:.2f}'.format(\
                        row['name'].decode('UTF-8'),\
                        c.ra.to_string(unit=u.hourangle, sep=':', pad=True,\
                                       precision=2, alwayssign=False, fields=3,\
@@ -238,49 +246,23 @@ class StarList(object):
                 FO.write('{}\n'.format(line))
 
 
-
-##-------------------------------------------------------------------------
-## Main Program
-##-------------------------------------------------------------------------
-def main():
-
-    ##-------------------------------------------------------------------------
-    ## Parse Command Line Arguments
-    ##-------------------------------------------------------------------------
-    ## create a parser object for understanding command-line arguments
-    parser = argparse.ArgumentParser(
-             description="Program description.")
-    ## add flags
-    parser.add_argument("-v", "--verbose",
-        action="store_true", dest="verbose",
-        default=False, help="Be verbose! (default = False)")
-    ## add arguments
-    parser.add_argument("--input",
-        type=str, dest="input",
-        help="The input.")
-    args = parser.parse_args()
-
-    ##-------------------------------------------------------------------------
-    ## Create logger object
-    ##-------------------------------------------------------------------------
-    logger = logging.getLogger('MyLogger')
-    logger.setLevel(logging.DEBUG)
-    ## Set up console output
-    LogConsoleHandler = logging.StreamHandler()
-    if args.verbose:
-        LogConsoleHandler.setLevel(logging.DEBUG)
-    else:
-        LogConsoleHandler.setLevel(logging.INFO)
-    LogFormat = logging.Formatter('%(asctime)23s %(levelname)8s: %(message)s')
-    LogConsoleHandler.setFormatter(LogFormat)
-    logger.addHandler(LogConsoleHandler)
-    ## Set up file output
-#     LogFileName = None
-#     LogFileHandler = logging.FileHandler(LogFileName)
-#     LogFileHandler.setLevel(logging.DEBUG)
-#     LogFileHandler.setFormatter(LogFormat)
-#     logger.addHandler(LogFileHandler)
-
+    def write(self, filename):
+        if os.path.exists(filename): os.path.remove(filename)
+        with open(filename, 'w') as FO:
+            for entry in self.starlist:
+                star = entry.dict()
+                line = '{:15s} {:24s} {:>7s}'.format(\
+                        entry.name,\
+                        entry.coord.to_string('hmsdms', sep=' ', precision=2),\
+                        star['equinox'],\
+                       )
+                for key in star.keys():
+                    if key not in ['name', 'RA', 'Dec', 'equinox']:
+                        if star[key]:
+                            line += ' {}={}'.format(key, star[key])
+                if entry.comment:
+                    line += ' #{}'.format(entry.comment)
+                FO.write('{}\n'.format(line))
 
 
 
@@ -288,3 +270,4 @@ if __name__ == '__main__':
     sl = StarList('sample_star_list.txt')
     print(sl.table())
     sl.export_to_csv('csv_test.txt')
+    sl.write('test.txt')
