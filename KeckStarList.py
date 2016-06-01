@@ -49,17 +49,73 @@ def parse_arg(arg):
             result = float(MO.group(2))
         elif arguments[keyword] == 'word':
             result = str(MO.group(2))
+        ## rotmode must be pa, vertical, or stationary
+        if keyword == 'rotmode':
+            assert result in ['pa', 'vertical', 'stationary']
+        ## wrap must be shortest, south, or north
+        ##   (south is clockwise with az increasing and north is
+        ##   counterclockwise with az decreasing)
+        if keyword == 'wrap':
+            assert result in ['shortest', 'south', 'north']
+
     return keyword, result
+
+
+##-------------------------------------------------------------------------
+## Target Object
+##-------------------------------------------------------------------------
+class Target(object):
+    def __init__(self, name=None, coord=None, equinox=None, comment=None,\
+                 pmra=None, pmdec=None, dra=None, ddec=None,\
+                 vmag=None, rotmode=None, rotdest=None,\
+                 wrap=None, raoffset=None, decoffset=None,\
+                ):
+        self.name = name
+        self.comment = comment
+        self.pmra = pmra
+        self.pmdec = pmdec
+        self.dra = dra
+        self.ddec = ddec
+        self.vmag = vmag
+        self.rotmode = rotmode
+        self.rotdest = rotdest
+        self.wrap = wrap
+        self.raoffset = raoffset
+        self.decoffset = decoffset
+
+        assert self.rotmode in [None, 'pa', 'vertical', 'stationary']
+        assert self.wrap in [None, 'shortest', 'south', 'north']
+
+
+        if equinox:
+            assert type(equinox) == str
+            if equinox == 'APP':
+                self.equinox = Time.now()
+            else:
+                self.equinox = Time(float(equinox), format='jyear')
+        else:
+            ## Assume equinox is J2000
+            self.equniox = Time(float('2000.0'), format='jyear')
+
+        if type(coord) == str:
+            self.coord = SkyCoord(coord,\
+                                  unit=(u.hourangle, u.deg),\
+                                  frame='fk5',\
+                                  equinox=self.equinox)
+
+        if type(coord) == SkyCoord:
+            self.coord = coord
 
 
 ##-------------------------------------------------------------------------
 ## StarList Object
 ##-------------------------------------------------------------------------
-class StarList():
-    def __init__(self, filename, verbose=True):
+class StarList(object):
+    def __init__(self, filename, verbose=False):
         self.comments = []
         self.lines = []
-        self.table = Table(names=('name', 'RA', 'Dec', 'equinox', 'pmra',\
+        self.starlist = []
+        self.data_table = Table(names=('name', 'RA', 'Dec', 'equinox', 'pmra',\
                                   'pmdec', 'dra', 'ddec', 'vmag', 'rotmode',\
                                   'rotdest', 'wrap', 'raoffset', 'decoffset',\
                                   ),\
@@ -71,18 +127,18 @@ class StarList():
                            )
         self.read_from_file(filename, verbose=verbose)
 
-    def read_from_file(self, filename, verbose=True):
 
-        
-
+    def read_from_file(self, filename, verbose=False):
         with open(filename, 'r') as FO:
             self.lines = FO.readlines()
 
         for line in self.lines:
-            print()
-            print('## Line: "{}"'.format(line.strip('\n')))
+            if verbose:
+                print()
+                print('## Line: "{}"'.format(line.strip('\n')))
 
             ## Check for comments
+            comment = None
             iscomment = re.match('(.*)#(.*)\n', line)
             if iscomment:
                 line = '{}\n'.format(iscomment.group(1))
@@ -98,47 +154,88 @@ class StarList():
                                 line_args[0], line_args[1], line_args[2],\
                                 line_args[3], line_args[4], line_args[5],\
                                 )
-                ## Format Equinox argument for astropy
-                equinox_string = line_args[6]
-                if equinox_string == 'APP':
-                    equniox = Time.now()
-                else:
-                    equinox = Time(float(equinox_string), format='jyear')
-
-                c = SkyCoord(coord_string,\
-                             unit=(u.hourangle, u.deg),\
-                             frame='fk5',\
-                             equinox=equinox)
-
-                if verbose:
-                    print('Object Name: "{}"'.format(objname))
-                    print('Coordinates: {}'.format(c.to_string('hmsdms')))
-                    print('Equinox: {}'.format(c.equinox.value))
-
-                star = {'name': objname,\
-                        'RA': c.ra.to(u.degree),\
-                        'Dec': c.dec.to(u.degree),\
-                        'equinox': str(c.equinox),\
-                        }
 
                 ## Parse Optional Arguments
+                all_args = {'pmra': None,\
+                            'pmdec': None,\
+                            'dra': None,\
+                            'ddec': None,\
+                            'vmag': None,\
+                            'rotmode': None,\
+                            'rotdest': None,\
+                            'wrap': None,\
+                            'raoffset': None,\
+                            'decoffset': None}
                 for line_arg in line_args[7:]:
                     arg, value = parse_arg(line_arg)
-                    star[arg] = value
+                    if arg in all_args.keys():
+                        all_args[arg] = value
+
+                self.starlist.append(Target(name=line[0:15].strip(),\
+                                     coord=coord_string,\
+                                     equinox=line_args[6],\
+                                     comment=comment,\
+                                     pmra=all_args['pmra'],\
+                                     pmdec=all_args['pmdec'],\
+                                     dra=all_args['dra'],\
+                                     ddec=all_args['ddec'],\
+                                     vmag=all_args['vmag'],\
+                                     rotmode=all_args['rotmode'],\
+                                     rotdest=all_args['rotdest'],\
+                                     wrap=all_args['wrap'],\
+                                     raoffset=all_args['raoffset'],\
+                                     decoffset=all_args['decoffset'],\
+                                    ))
 
 
-                all_args = ['name', 'RA', 'Dec', 'equinox',\
-                            'pmra', 'pmdec', 'dra', 'ddec', 'vmag', 'rotmode',\
-                            'rotdest', 'wrap', 'raoffset', 'decoffset']
-                mask = {}
-                for arg in all_args:
-                    if arg in star.keys():
-                        mask[arg] = False
-                    else:
-                        star[arg] = float('nan')
-                        mask[arg] = True
+    def table(self):
+        for entry in self.starlist:
+            eq = entry.coord.equinox
+            eq.format = 'jyear'
+            star = {'name': entry.name,\
+                    'RA': entry.coord.ra.to(u.degree),\
+                    'Dec': entry.coord.dec.to(u.degree),\
+                    'equinox': str(eq.value),\
+                    'pmra': entry.pmra,\
+                    'pmdec': entry.pmdec,\
+                    'dra': entry.dra,\
+                    'ddec': entry.ddec,\
+                    'vmag': entry.vmag,\
+                    'rotmode': entry.rotmode,\
+                    'rotdest': entry.rotdest,\
+                    'wrap': entry.wrap,\
+                    'raoffset': entry.raoffset,\
+                    'decoffset': entry.decoffset,\
+                    }
+            mask = {}
+            for key in star.keys():
+                if star[key]:
+                    mask[key] = False
+                else:
+                    mask[key] = True
+            self.data_table.add_row(vals=star, mask=mask)
 
-                self.table.add_row(vals=star, mask=mask)
+        return self.data_table
+
+
+    def export_to_csv(self, filename):
+        with open(filename, 'w') as FO:
+            for row in self.table:
+                c = SkyCoord('{} {}'.format(row['RA'], row['Dec']),\
+                             unit=(u.deg, u.deg),\
+                             frame='fk5',\
+                             equinox=Time(float(row['equinox']), format='jyear'))
+                line = '{:s}, {:s}, {:.1f}, {:15s}'.format(\
+                       c.ra.to_string(unit=u.hourangle, sep=':', pad=True,\
+                                      precision=2, alwayssign=False, fields=3,\
+                                      decimal=False),\
+                       c.dec.to_string(unit=u.degree, sep=':', pad=True,\
+                                       precision=1, alwayssign=True, fields=3,\
+                                       decimal=False),\
+                       c.equinox.value,\
+                       row['name'].decode('UTF-8'),\
+                       )
+                FO.write('{}\n'.format(line))
 
 
 
@@ -189,4 +286,5 @@ def main():
 
 if __name__ == '__main__':
     sl = StarList('sample_star_list.txt')
-    print(sl.table)
+    print(sl.table())
+#     sl.export_to_csv('csv_test.txt')
