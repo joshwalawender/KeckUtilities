@@ -226,28 +226,26 @@ class StarList(object):
 
 
     def export_to_csv(self, filename):
-        if os.path.exists(filename): os.path.remove(filename)
+        if os.path.exists(filename): os.remove(filename)
         with open(filename, 'w') as FO:
-            for row in self.table():
-                c = SkyCoord('{} {}'.format(row['RA'], row['Dec']),\
-                             unit=(u.deg, u.deg),\
-                             frame='fk5',\
-                             equinox=Time(float(row['equinox']), format='jyear'))
+            for entry in self.starlist:
+                eq = entry.coord.equinox
+                eq.format = 'jyear'
                 line = '{:15s}, {:s}, {:s}, {:.2f}'.format(\
-                       row['name'].decode('UTF-8'),\
-                       c.ra.to_string(unit=u.hourangle, sep=':', pad=True,\
+                       entry.name,\
+                       entry.coord.ra.to_string(unit=u.hourangle, sep=':', pad=True,\
                                       precision=2, alwayssign=False, fields=3,\
                                       decimal=False),\
-                       c.dec.to_string(unit=u.degree, sep=':', pad=True,\
+                       entry.coord.dec.to_string(unit=u.degree, sep=':', pad=True,\
                                        precision=1, alwayssign=True, fields=3,\
                                        decimal=False),\
-                       c.equinox.value,\
+                       eq.value,\
                        )
                 FO.write('{}\n'.format(line))
 
 
     def write(self, filename):
-        if os.path.exists(filename): os.path.remove(filename)
+        if os.path.exists(filename): os.remove(filename)
         with open(filename, 'w') as FO:
             for entry in self.starlist:
                 star = entry.dict()
@@ -258,7 +256,7 @@ class StarList(object):
                        )
                 for key in star.keys():
                     if key not in ['name', 'RA', 'Dec', 'equinox']:
-                        if star[key]:
+                        if star[key] != None:
                             line += ' {}={}'.format(key, star[key])
                 if entry.comment:
                     line += ' #{}'.format(entry.comment)
