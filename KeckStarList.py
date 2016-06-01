@@ -220,12 +220,13 @@ class StarList(object):
 
     def export_to_csv(self, filename):
         with open(filename, 'w') as FO:
-            for row in self.table:
+            for row in self.table():
                 c = SkyCoord('{} {}'.format(row['RA'], row['Dec']),\
                              unit=(u.deg, u.deg),\
                              frame='fk5',\
                              equinox=Time(float(row['equinox']), format='jyear'))
-                line = '{:s}, {:s}, {:.1f}, {:15s}'.format(\
+                line = '{:15s}, {:s}, {:s}, {:.1f}'.format(\
+                       row['name'].decode('UTF-8'),\
                        c.ra.to_string(unit=u.hourangle, sep=':', pad=True,\
                                       precision=2, alwayssign=False, fields=3,\
                                       decimal=False),\
@@ -233,7 +234,6 @@ class StarList(object):
                                        precision=1, alwayssign=True, fields=3,\
                                        decimal=False),\
                        c.equinox.value,\
-                       row['name'].decode('UTF-8'),\
                        )
                 FO.write('{}\n'.format(line))
 
@@ -287,4 +287,4 @@ def main():
 if __name__ == '__main__':
     sl = StarList('sample_star_list.txt')
     print(sl.table())
-#     sl.export_to_csv('csv_test.txt')
+    sl.export_to_csv('csv_test.txt')
