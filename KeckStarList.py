@@ -10,7 +10,7 @@ import argparse
 import logging
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, FK5
 from astropy.time import Time
 from astropy.table import Table, Row
 
@@ -225,21 +225,22 @@ class StarList(object):
         return self.data_table
 
 
-    def export_to_csv(self, filename):
+    def export_text_file(self, filename, equinox='J2000'):
         if os.path.exists(filename): os.remove(filename)
         with open(filename, 'w') as FO:
+            FO.write('# {:<13s} {:<11s} {:<12s} (equinox={})\n'.format('target name', 'RA', 'Dec', equinox))
             for entry in self.starlist:
-                eq = entry.coord.equinox
-                eq.format = 'jyear'
-                line = '{:15s}, {:s}, {:s}, {:.2f}'.format(\
+                c = entry.coord.transform_to(FK5(equinox=equinox))
+                sign = {-1: '-', +1: '+'}
+                line = '{:15s} {:02d}:{:02d}:{:05.2f} {}{:02d}:{:02d}:{:05.2f}'.format(\
                        entry.name,\
-                       entry.coord.ra.to_string(unit=u.hourangle, sep=':', pad=True,\
-                                      precision=2, alwayssign=False, fields=3,\
-                                      decimal=False),\
-                       entry.coord.dec.to_string(unit=u.degree, sep=':', pad=True,\
-                                       precision=1, alwayssign=True, fields=3,\
-                                       decimal=False),\
-                       eq.value,\
+                       int(c.ra.hms.h),\
+                       int(c.ra.hms.m),\
+                       c.ra.hms.s,\
+                       sign[int(c.dec.value/abs(c.dec.value))],\
+                       int(abs(c.dec.dms.d)),\
+                       int(abs(c.dec.dms.m)),\
+                       abs(c.dec.dms.s),\
                        )
                 FO.write('{}\n'.format(line))
 
@@ -266,6 +267,5 @@ class StarList(object):
 
 if __name__ == '__main__':
     sl = StarList('sample_star_list.txt')
-    print(sl.table())
-    sl.export_to_csv('csv_test.txt')
-    sl.write('test.txt')
+    sl.export_text_file('output.txt')
+    sl.write('starlist.txt')
