@@ -96,7 +96,8 @@ class Target(object):
                 coord_equinox = Time(float(equinox), format='jyear')
         else:
             ## Assume equinox is J2000
-            coord_equinox = Time(float('2000.0'), format='jyear')
+            self.equinox = '2000.0'
+            coord_equinox = Time(float(self.equinox), format='jyear')
 
         if type(coord) == str:
             self.coord = SkyCoord(coord,\
@@ -145,7 +146,10 @@ class StarList(object):
                                  ),\
                            masked=True,\
                            )
-        self.read_from_file(filename, verbose=verbose)
+        self.filename = None
+        if os.path.exists(filename):
+            self.filename = filename
+            self.read_from_file(filename, verbose=verbose)
 
 
     def read_from_file(self, filename, verbose=False):
