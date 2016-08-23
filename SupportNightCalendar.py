@@ -9,6 +9,12 @@ import argparse
 from datetime import datetime as dt
 
 from astropy.table import Table
+from astropy import units as u
+from astropy import coordinates as c
+from astropy.time import Time, TimezoneInfo
+from astroplan import Observer
+from datetime import datetime as dt
+from datetime import timedelta as tdelta
 
 class ParseError(Exception):
     def __init__(self, value):
@@ -36,26 +42,28 @@ def main():
         type=str, dest="telsched", default='telsched.csv',
         help="The csv file of the telescope schedule.")
     parser.add_argument('-s', '--start',
-        type=str, dest="start", default='140000',
+        type=str, dest="start",
         help="Start time for calendar entry in HHMMSS or HHMM 24 hour format.")
     parser.add_argument('-e', '--end',
-        type=str, dest="end", default='230000', 
+        type=str, dest="end", default='2300',
         help="End time for calendar entry in HHMMSS or HHMM 24 hour format.")
     args = parser.parse_args()
 
-    if len(args.start) == 4:
-        start = args.start + '00'
-    elif len(args.start) == 6:
-        start = args.start
-    else:
-        raise ParseError('Could not parse start time: "{}"'.format(args.start))
+    if args.start:
+        if len(args.start) == 4:
+            args.start = args.start + '00'
+        elif len(args.start) == 6:
+            args.start = args.start
+        else:
+            raise ParseError('Could not parse start time: "{}"'.format(args.start))
 
-    if len(args.end) == 4:
-        end = args.end + '00'
-    elif len(args.end) == 6:
-        end = args.end
-    else:
-        raise ParseError('Could not parse end time: "{}"'.format(args.end))
+    if args.end:
+        if len(args.end) == 4:
+            args.end = args.end + '00'
+        elif len(args.end) == 6:
+            args.end = args.end
+        else:
+            raise ParseError('Could not parse end time: "{}"'.format(args.end))
 
 
     ##-------------------------------------------------------------------------
@@ -91,11 +99,40 @@ def main():
     if os.path.exists(ical_file): os.remove(ical_file)
     now = dt.utcnow()
     uid = now.strftime('%Y%m%dT%H%M%SZ')
+    obs = Observer.at_site('Keck')
+    HST = TimezoneInfo(utc_offset=-10*u.hour, tzname='HST')
+    min_before_sunset = 15
+    min_after_sunrise = 15
     with open(ical_file, 'w') as FO:
         FO.write('BEGIN:VCALENDAR\n'.format())
         FO.write('PRODID:-//hacksw/handcal//NONSGML v1.0//EN\n'.format())
         for night in sasched:
             date = night['Date']
+            time = Time('{} 23:00:00'.format(date))
+            sunset = obs.sun_set_time(time, which='next', horizon=0*u.deg)
+            dusk_civil = obs.sun_set_time(time, which='next', horizon=-6*u.deg)
+            dusk_nauti = obs.sun_set_time(time, which='next', horizon=-12*u.deg)
+            dusk_astro = obs.sun_set_time(time, which='next', horizon=-18*u.deg)
+            sunrise = obs.sun_rise_time(time, which='next', horizon=0*u.deg)
+            dawn_civil = obs.sun_rise_time(time, which='next', horizon=-6*u.deg)
+            dawn_nauti = obs.sun_rise_time(time, which='next', horizon=-12*u.deg)
+            dawn_astro = obs.sun_rise_time(time, which='next', horizon=-18*u.deg)
+            if args.start:
+                calend = '{}T{}'.format(date.replace('-', ''), args.start)
+            else:
+                calstart = (sunset.to_datetime(timezone=HST)\
+                            - tdelta(0,min_before_sunset*60.)).strftime('%Y%m%dT%H%M%S')
+            if args.end:
+                calend = '{}T{}'.format(date.replace('-', ''), args.end)
+            else:
+                calend = (sunrise.to_datetime(timezone=HST)\
+                          + tdelta(0,min_after_sunrise*60.)).strftime('%Y%m%dT%H%M%S')
+
+#             print(time.to_datetime(timezone=HST))
+#             print(sunset.to_datetime(timezone=HST))
+#             print(sunrise.to_datetime(timezone=HST))
+
+
             tel = int(night[saname][1:2])
             entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == tel)]
             assert len(entry) == 1
@@ -103,13 +140,25 @@ def main():
             FO.write('BEGIN:VEVENT\n')
             FO.write('UID:{}-{:04d}@kecksupportcalendar.com\n'.format(uid, entry['#'][0]))
             FO.write('DTSTAMP:{}\n'.format(uid))
-            FO.write('DTSTART;TZID=Pacific/Honolulu:{}T140000\n'.format(
-                     entry['Date'][0].replace('-', '')))
-            FO.write('DTEND;TZID=Pacific/Honolulu:{}T230000\n'.format(
-                     entry['Date'][0].replace('-', '')))
+            FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(calstart))
+            FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(calend))
             FO.write('SUMMARY:{} {}\n'.format(entry['Instrument'][0], type[night[saname]]))
-            FO.write('DESCRIPTION: PI: {}\\nObservers: {}\\nLocation: {}\n'.format(
-                     entry['Principal'][0], entry['Observers'][0], entry['Location'][0]))
+            FO.write('DESCRIPTION: Sunset/Twilights: {}/{}/{}/{}\\n'\
+                                  'Twilights/Sunrise: {}/{}/{}/{}\\n'\
+                                  'PI: {}\\n'\
+                                  'Observers: {}\\n'\
+                                  'Location: {}\n'.format(
+                     sunset.to_datetime(timezone=HST).strftime('%H:%M'),
+                     dusk_civil.to_datetime(timezone=HST).strftime('%H:%M'),
+                     dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
+                     dusk_astro.to_datetime(timezone=HST).strftime('%H:%M'),
+                     dawn_astro.to_datetime(timezone=HST).strftime('%H:%M'),
+                     dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
+                     dawn_civil.to_datetime(timezone=HST).strftime('%H:%M'),
+                     sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
+                     entry['Principal'][0],
+                     entry['Observers'][0],
+                     entry['Location'][0]))
             FO.write('END:VEVENT\n')
         FO.write('END:VCALENDAR\n')
 
