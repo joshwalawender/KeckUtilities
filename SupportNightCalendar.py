@@ -6,8 +6,8 @@ from __future__ import division, print_function
 import sys
 import os
 import argparse
-from datetime import datetime as dt
 
+import numpy as np
 from astropy.table import Table
 from astropy import units as u
 from astropy import coordinates as c
@@ -84,6 +84,7 @@ def main():
     saname = keys.pop(-1)
 
     sasched = sasched[~sasched[saname].mask]
+    print('Processing {:d} nights in SA schedule.'.format(len(sasched)))
     type = {'K1': 'Support',
             'K1T': 'Training',
             'K1oc': 'On Call',
@@ -99,24 +100,37 @@ def main():
     if os.path.exists(ical_file): os.remove(ical_file)
     now = dt.utcnow()
     uid = now.strftime('%Y%m%dT%H%M%SZ')
+
     obs = Observer.at_site('Keck')
     HST = TimezoneInfo(utc_offset=-10*u.hour, tzname='HST')
-    min_before_sunset = 15
-    min_after_sunrise = 15
+    ## Calculate Elevation of True Horizon from Maunakea
+    ##   Formulas from https://en.wikipedia.org/wiki/Horizon
+    h = 4.2*u.km
+    R = (1.0*u.earthRad).to(u.km)
+    d = np.sqrt(h*(2*R+h))
+    phi = (np.arccos((d/R).value)*u.radian).to(u.deg)
+    MKhorizon = phi - 90*u.deg
+
+    min_before_sunset = 30.
+    min_after_sunrise = 30.
+
     with open(ical_file, 'w') as FO:
         FO.write('BEGIN:VCALENDAR\n'.format())
         FO.write('PRODID:-//hacksw/handcal//NONSGML v1.0//EN\n'.format())
         for night in sasched:
             date = night['Date']
+            print('  {} {}'.format(night['Date'], night[saname]))
             time = Time('{} 23:00:00'.format(date))
-            sunset = obs.sun_set_time(time, which='next', horizon=0*u.deg)
+
+            sunset = obs.sun_set_time(time, which='next', horizon=MKhorizon)
             dusk_civil = obs.sun_set_time(time, which='next', horizon=-6*u.deg)
             dusk_nauti = obs.sun_set_time(time, which='next', horizon=-12*u.deg)
             dusk_astro = obs.sun_set_time(time, which='next', horizon=-18*u.deg)
-            sunrise = obs.sun_rise_time(time, which='next', horizon=0*u.deg)
+            sunrise = obs.sun_rise_time(time, which='next', horizon=MKhorizon)
             dawn_civil = obs.sun_rise_time(time, which='next', horizon=-6*u.deg)
             dawn_nauti = obs.sun_rise_time(time, which='next', horizon=-12*u.deg)
             dawn_astro = obs.sun_rise_time(time, which='next', horizon=-18*u.deg)
+
             if args.start:
                 calend = '{}T{}'.format(date.replace('-', ''), args.start)
             else:
@@ -127,11 +141,6 @@ def main():
             else:
                 calend = (sunrise.to_datetime(timezone=HST)\
                           + tdelta(0,min_after_sunrise*60.)).strftime('%Y%m%dT%H%M%S')
-
-#             print(time.to_datetime(timezone=HST))
-#             print(sunset.to_datetime(timezone=HST))
-#             print(sunrise.to_datetime(timezone=HST))
-
 
             tel = int(night[saname][1:2])
             entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == tel)]
