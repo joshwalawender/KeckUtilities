@@ -76,6 +76,7 @@ def main():
     assert 'Principal' in telsched.keys()
     assert 'Observers' in telsched.keys()
     assert 'Location' in telsched.keys()
+    assert 'InstrAcc' in telsched.keys()
     sasched = Table.read(args.sasched, format='ascii.csv', guess=False)
     keys = sasched.keys()
     assert '#' in keys
@@ -119,7 +120,8 @@ def main():
         FO.write('PRODID:-//hacksw/handcal//NONSGML v1.0//EN\n'.format())
         for night in sasched:
             date = night['Date']
-            print('  {} {}'.format(night['Date'], night[saname]))
+            telstr = night[saname]
+            print('  {} {}'.format(night['Date'], telstr))
             time = Time('{} 23:00:00'.format(date))
 
             sunset = obs.sun_set_time(time, which='next', horizon=MKhorizon)
@@ -130,6 +132,15 @@ def main():
             dawn_civil = obs.sun_rise_time(time, which='next', horizon=-6*u.deg)
             dawn_nauti = obs.sun_rise_time(time, which='next', horizon=-12*u.deg)
             dawn_astro = obs.sun_rise_time(time, which='next', horizon=-18*u.deg)
+
+#             if obs.moon_altaz(sunset).alt > 0*u.deg:
+#                 moon_set = obs.moon_set_time(sunset, which='next',
+#                                              horizon=MKhorizon)
+#                 print('Moon Set at {}'.format(moon_set))
+#             else:
+#                 moon_rise = obs.moon_rise_time(sunset, which='next',
+#                                                horizon=MKhorizon)
+#                 print('Moon Rise at {}'.format(moon_rise))
 
             if args.start:
                 calend = '{}T{}'.format(date.replace('-', ''), args.start)
@@ -151,12 +162,15 @@ def main():
             FO.write('DTSTAMP:{}\n'.format(uid))
             FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(calstart))
             FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(calend))
-            FO.write('SUMMARY:{} {}\n'.format(entry['Instrument'][0], type[night[saname]]))
+            FO.write('SUMMARY:{} {} {}\n'.format(type[telstr], telstr[:2],
+                                                 entry['Instrument'][0],
+                                                 ))
             FO.write('DESCRIPTION: Sunset/Twilights: {}/{}/{}/{}\\n'\
                                   'Twilights/Sunrise: {}/{}/{}/{}\\n'\
                                   'PI: {}\\n'\
                                   'Observers: {}\\n'\
-                                  'Location: {}\n'.format(
+                                  'Location: {}\\n'\
+                                  'Account: {}\n'.format(
                      sunset.to_datetime(timezone=HST).strftime('%H:%M'),
                      dusk_civil.to_datetime(timezone=HST).strftime('%H:%M'),
                      dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
@@ -167,7 +181,8 @@ def main():
                      sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
                      entry['Principal'][0],
                      entry['Observers'][0],
-                     entry['Location'][0]))
+                     entry['Location'][0],
+                     entry['InstrAcc'][0]))
             FO.write('END:VEVENT\n')
         FO.write('END:VCALENDAR\n')
 
