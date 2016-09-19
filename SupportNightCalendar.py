@@ -125,11 +125,9 @@ def main():
             time = Time('{} 23:00:00'.format(date))
 
             sunset = obs.sun_set_time(time, which='next', horizon=MKhorizon)
-            dusk_civil = obs.sun_set_time(time, which='next', horizon=-6*u.deg)
             dusk_nauti = obs.sun_set_time(time, which='next', horizon=-12*u.deg)
             dusk_astro = obs.sun_set_time(time, which='next', horizon=-18*u.deg)
             sunrise = obs.sun_rise_time(time, which='next', horizon=MKhorizon)
-            dawn_civil = obs.sun_rise_time(time, which='next', horizon=-6*u.deg)
             dawn_nauti = obs.sun_rise_time(time, which='next', horizon=-12*u.deg)
             dawn_astro = obs.sun_rise_time(time, which='next', horizon=-18*u.deg)
 
@@ -162,22 +160,21 @@ def main():
             FO.write('DTSTAMP:{}\n'.format(uid))
             FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(calstart))
             FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(calend))
-            FO.write('SUMMARY:{} {} {}\n'.format(type[telstr], telstr[:2],
-                                                 entry['Instrument'][0],
+            FO.write('SUMMARY:{} {} ({})\n'.format(entry['Instrument'][0],
+                                                 type[telstr],
+                                                 entry['Location'][0],
                                                  ))
-            FO.write('DESCRIPTION: Sunset/Twilights: {}/{}/{}/{}\\n'\
-                                  'Twilights/Sunrise: {}/{}/{}/{}\\n'\
+            FO.write('DESCRIPTION: Sunset @ {} / Twilights @ {}, {}\\n'\
+                                  'Sunrise @ {} / Twilights @ {}, {}\\n'\
                                   'PI: {}\\n'\
                                   'Observers: {}\\n'\
                                   'Location: {}\\n'\
                                   'Account: {}\n'.format(
                      sunset.to_datetime(timezone=HST).strftime('%H:%M'),
-                     dusk_civil.to_datetime(timezone=HST).strftime('%H:%M'),
                      dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
                      dusk_astro.to_datetime(timezone=HST).strftime('%H:%M'),
                      dawn_astro.to_datetime(timezone=HST).strftime('%H:%M'),
                      dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-                     dawn_civil.to_datetime(timezone=HST).strftime('%H:%M'),
                      sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
                      entry['Principal'][0],
                      entry['Observers'][0],
