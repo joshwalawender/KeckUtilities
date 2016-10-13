@@ -126,10 +126,10 @@ def main():
 
             sunset = obs.sun_set_time(time, which='next', horizon=MKhorizon)
             dusk_nauti = obs.sun_set_time(time, which='next', horizon=-12*u.deg)
-            dusk_astro = obs.sun_set_time(time, which='next', horizon=-18*u.deg)
+#             dusk_astro = obs.sun_set_time(time, which='next', horizon=-18*u.deg)
             sunrise = obs.sun_rise_time(time, which='next', horizon=MKhorizon)
             dawn_nauti = obs.sun_rise_time(time, which='next', horizon=-12*u.deg)
-            dawn_astro = obs.sun_rise_time(time, which='next', horizon=-18*u.deg)
+#             dawn_astro = obs.sun_rise_time(time, which='next', horizon=-18*u.deg)
 
 #             if obs.moon_altaz(sunset).alt > 0*u.deg:
 #                 moon_set = obs.moon_set_time(sunset, which='next',
@@ -164,18 +164,16 @@ def main():
                                                  type[telstr],
                                                  entry['Location'][0],
                                                  ))
-            FO.write('DESCRIPTION: Sunset @ {} / Twilights @ {}, {}\\n'\
-                                  'Sunrise @ {} / Twilights @ {}, {}\\n'\
+            FO.write('DESCRIPTION: Sunset @ {} / 12 deg Twilight @ {}\\n'\
+                                  'Sunrise @ {} / 12 deg Twilight @ {}\\n'\
                                   'PI: {}\\n'\
                                   'Observers: {}\\n'\
                                   'Location: {}\\n'\
                                   'Account: {}\n'.format(
                      sunset.to_datetime(timezone=HST).strftime('%H:%M'),
                      dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-                     dusk_astro.to_datetime(timezone=HST).strftime('%H:%M'),
-                     dawn_astro.to_datetime(timezone=HST).strftime('%H:%M'),
-                     dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
                      sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
+                     dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
                      entry['Principal'][0],
                      entry['Observers'][0],
                      entry['Location'][0],
