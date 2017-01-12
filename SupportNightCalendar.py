@@ -40,7 +40,7 @@ def ics_entry(FO, title, starttime, endtime, description, verbose=False):
     except:
         pass
     if verbose:
-        print('{} {}'.format(starttime[0:10], title))
+        print('{} {}'.format(starttime[0:8], title))
     FO.write('BEGIN:VEVENT\n')
     FO.write('UID:{}@mycalendar.com\n'.format(now.strftime('%Y%m%dT%H%M%S.%fZ')))
     FO.write('DTSTAMP:{}\n'.format(now.strftime('%Y%m%dT%H%M%SZ')))
