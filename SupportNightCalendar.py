@@ -29,7 +29,7 @@ def ics_entry(FO, title, starttime, endtime, description, verbose=False):
     assert type(title) is str
     assert type(starttime) in [dt, str]
     assert type(endtime) in [dt, str]
-    assert type(description) is str
+    assert type(description) in [list, str]
     now = dt.utcnow()
     try:
         starttime = starttime.strftime('%Y%m%dT%H%M%S')
@@ -41,6 +41,8 @@ def ics_entry(FO, title, starttime, endtime, description, verbose=False):
         pass
     if verbose:
         print('{} {}'.format(starttime[0:8], title))
+    if type(description) is list:
+        description = '\\n'.join(description)
     FO.write('BEGIN:VEVENT\n')
     FO.write('UID:{}@mycalendar.com\n'.format(now.strftime('%Y%m%dT%H%M%S.%fZ')))
     FO.write('DTSTAMP:{}\n'.format(now.strftime('%Y%m%dT%H%M%SZ')))
@@ -187,20 +189,20 @@ def main():
             title = '{} {} ({})'.format(entry['Instrument'][0],
                                                  type[telstr],
                                                  entry['Location'][0])
-            description = 'Sunset @ {} / 12 deg Twilight @ {}\\n'\
-                           'Sunrise @ {} / 12 deg Twilight @ {}\\n'\
-                           'PI: {}\\n'\
-                           'Observers: {}\\n'\
-                           'Location: {}\\n'\
-                           'Account: {}\n'.format(
-                           sunset.to_datetime(timezone=HST).strftime('%H:%M'),
-                           dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-                           sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
-                           dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-                           entry['Principal'][0],
-                           entry['Observers'][0],
-                           entry['Location'][0],
-                           entry['InstrAcc'][0])
+            description = ['Sunset @ {}'.format(
+                               sunset.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'Sunrise @ {}'.format(
+                               sunrise.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'PI: {}'.format(entry['Principal'][0]),
+                           'Observers: {}'.format(entry['Observers'][0]),
+                           'Location: {}'.format(entry['Location'][0]),
+                           'Account: {}'.format(entry['InstrAcc'][0]),
+                           ]
+                           
             ics_entry(FO, title, calstart, calend, description)
 
             
