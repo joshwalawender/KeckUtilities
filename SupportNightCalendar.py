@@ -22,6 +22,35 @@ class ParseError(Exception):
     def __str__(self):
         return repr(self.value)
 
+##-------------------------------------------------------------------------
+## Generate ICS Entry
+##-------------------------------------------------------------------------
+def ics_entry(FO, title, starttime, endtime, description, verbose=False):
+    assert type(title) is str
+    assert type(starttime) in [dt, str]
+    assert type(endtime) in [dt, str]
+    assert type(description) is str
+    now = dt.utcnow()
+    try:
+        starttime = starttime.strftime('%Y%m%dT%H%M%S')
+    except:
+        pass
+    try:
+        endtime = endtime.strftime('%Y%m%dT%H%M%S')
+    except:
+        pass
+    if verbose:
+        print('{} {}'.format(starttime[0:10], title))
+    FO.write('BEGIN:VEVENT\n')
+    FO.write('UID:{}@mycalendar.com\n'.format(now.strftime('%Y%m%dT%H%M%S.%fZ')))
+    FO.write('DTSTAMP:{}\n'.format(now.strftime('%Y%m%dT%H%M%SZ')))
+    FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(starttime))
+    FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(endtime))
+    FO.write('SUMMARY:{}\n'.format(title))
+    FO.write('DESCRIPTION: {}\n'.format(description))
+    FO.write('END:VEVENT\n')
+    FO.write('\n')
+
 
 ##-------------------------------------------------------------------------
 ## Main Program
@@ -154,31 +183,51 @@ def main():
             tel = int(night[saname][1:2])
             entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == tel)]
             assert len(entry) == 1
-            
-            FO.write('BEGIN:VEVENT\n')
-            FO.write('UID:{}-{:04d}@kecksupportcalendar.com\n'.format(uid, entry['#'][0]))
-            FO.write('DTSTAMP:{}\n'.format(uid))
-            FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(calstart))
-            FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(calend))
-            FO.write('SUMMARY:{} {} ({})\n'.format(entry['Instrument'][0],
+
+            title = '{} {} ({})'.format(entry['Instrument'][0],
                                                  type[telstr],
-                                                 entry['Location'][0],
-                                                 ))
-            FO.write('DESCRIPTION: Sunset @ {} / 12 deg Twilight @ {}\\n'\
-                                  'Sunrise @ {} / 12 deg Twilight @ {}\\n'\
-                                  'PI: {}\\n'\
-                                  'Observers: {}\\n'\
-                                  'Location: {}\\n'\
-                                  'Account: {}\n'.format(
-                     sunset.to_datetime(timezone=HST).strftime('%H:%M'),
-                     dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-                     sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
-                     dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-                     entry['Principal'][0],
-                     entry['Observers'][0],
-                     entry['Location'][0],
-                     entry['InstrAcc'][0]))
-            FO.write('END:VEVENT\n')
+                                                 entry['Location'][0])
+            description = 'Sunset @ {} / 12 deg Twilight @ {}\\n'\
+                           'Sunrise @ {} / 12 deg Twilight @ {}\\n'\
+                           'PI: {}\\n'\
+                           'Observers: {}\\n'\
+                           'Location: {}\\n'\
+                           'Account: {}\n'.format(
+                           sunset.to_datetime(timezone=HST).strftime('%H:%M'),
+                           dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
+                           sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
+                           dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
+                           entry['Principal'][0],
+                           entry['Observers'][0],
+                           entry['Location'][0],
+                           entry['InstrAcc'][0])
+            ics_entry(FO, title, calstart, calend, description)
+
+            
+#             FO.write('BEGIN:VEVENT\n')
+#             FO.write('UID:{}-{:04d}@kecksupportcalendar.com\n'.format(uid, entry['#'][0]))
+#             FO.write('DTSTAMP:{}\n'.format(uid))
+#             FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(calstart))
+#             FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(calend))
+#             FO.write('SUMMARY:{} {} ({})\n'.format(entry['Instrument'][0],
+#                                                  type[telstr],
+#                                                  entry['Location'][0],
+#                                                  ))
+#             FO.write('DESCRIPTION: Sunset @ {} / 12 deg Twilight @ {}\\n'\
+#                                   'Sunrise @ {} / 12 deg Twilight @ {}\\n'\
+#                                   'PI: {}\\n'\
+#                                   'Observers: {}\\n'\
+#                                   'Location: {}\\n'\
+#                                   'Account: {}\n'.format(
+#                      sunset.to_datetime(timezone=HST).strftime('%H:%M'),
+#                      dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
+#                      sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
+#                      dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
+#                      entry['Principal'][0],
+#                      entry['Observers'][0],
+#                      entry['Location'][0],
+#                      entry['InstrAcc'][0]))
+#             FO.write('END:VEVENT\n')
         FO.write('END:VCALENDAR\n')
 
 
