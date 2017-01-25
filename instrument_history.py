@@ -7,6 +7,8 @@ import os
 from astropy.table import Table, Column
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.rcParams['font.size'] = 24
 
 def main():
     history_file = 'HIRES_history.csv'
@@ -22,14 +24,14 @@ def main():
     for i,val in enumerate(byyear.groups):
         years.append(byyear.groups[i]['year'][0])
         nights.append(sum(byyear.groups[i]['fraction']))
-
+    
     plt.figure(figsize=(16,9))
     plt.bar(years, nights, width=0.8)
     plt.xlabel('Year')
-    plt.ylabel('Nights')
+    plt.ylabel('Nights / Year')
     plt.xlim(1993,2018)
     plt.grid()
-    plt.savefig('HIRES.png', dpi=72)
+    plt.savefig('HIRES.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
     
     
 if __name__ == '__main__':
