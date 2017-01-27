@@ -1,5 +1,5 @@
-Nights.ics
-sasched.csv
-telsched.csv
+*.ics
+*.csv
+*.png
 starlist.txt
 output.txt
