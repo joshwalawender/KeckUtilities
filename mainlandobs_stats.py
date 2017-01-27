@@ -1,33 +1,129 @@
+import sys
+import os
+
 import pymysql
 import pymysql.cursors
 
+import numpy as np
+from astropy.table import Table, Column, vstack
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 def main():
-    # Connect to the database
-    connection = pymysql.connect(host='mysqlserver',
-                                 user='sched',
-                                 password='sched',
-                                 db='schedules',
-                                 cursorclass=pymysql.cursors.DictCursor)
 
+    table_file = 'MainlandObserving.csv'
+    if not os.path.exists(table_file):
+        print('Querying SQL Database')
 
-    semesters = {'2005B': ('2005-08-01', '2006-01-31'),
-                }
-    for semester in semesters.keys():
-        fields = "ReqNo,FromDate,NumNights,Portion,Telescope,Instrument,AllocInst,Site,Mode,Principal,Status"
-        table = "mainlandObs"
-        date1, date2 = semesters[semester]
-        conditions = ["FromDate between '{}' and '{}'".format(date1, date2),
-                      "Site = 'USRA'"]
-        condition = "where {}".format(" and ".join(conditions))
-        sql = "select {} from {} {}".format(fields, table, condition)
-        print(condition)
+        # Connect to the database
+        connection = pymysql.connect(host='mysqlserver',
+                                     user='sched',
+                                     password='sched',
+                                     db='schedules',
+                                     cursorclass=pymysql.cursors.DictCursor)
+
+        names = ['Status', 'Telescope', 'ReqNo', 'AllocInst', 'Site', 'Instrument', 'Portion', 'FromDate', 'Mode', 'NumNights', 'Principal']
+        dtypes = ['a20', 'a8', 'i8', 'a20', 'a20', 'a20', 'a20', 'a20', 'a20', 'i4', 'a40']
+
         try:
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-                result = cursor.fetchall()
-                print(result)
+            semesters = {2005.5: ('2005-08-01', '2006-01-31'),
+                         2006.0: ('2006-02-01', '2006-07-31'),
+                         2006.5: ('2006-08-01', '2007-01-31'),
+                         2007.0: ('2007-02-01', '2007-07-31'),
+                         2007.5: ('2007-08-01', '2008-01-31'),
+                         2008.0: ('2008-02-01', '2008-07-31'),
+                         2008.5: ('2008-08-01', '2009-01-31'),
+                         2009.0: ('2009-02-01', '2009-07-31'),
+                         2009.5: ('2009-08-01', '2010-01-31'),
+                         2010.0: ('2010-02-01', '2010-07-31'),
+                         2010.5: ('2010-08-01', '2011-01-31'),
+                         2011.0: ('2011-02-01', '2011-07-31'),
+                         2011.5: ('2011-08-01', '2012-01-31'),
+                         2012.0: ('2012-02-01', '2012-07-31'),
+                         2012.5: ('2012-08-01', '2013-01-31'),
+                         2013.0: ('2013-02-01', '2013-07-31'),
+                         2013.5: ('2013-08-01', '2014-01-31'),
+                         2014.0: ('2014-02-01', '2014-07-31'),
+                         2014.5: ('2014-08-01', '2015-01-31'),
+                         2015.0: ('2015-02-01', '2015-07-31'),
+                         2015.5: ('2015-08-01', '2016-01-31'),
+                         2016.0: ('2016-02-01', '2016-07-31'),
+                         2016.5: ('2016-08-01', '2017-01-31'),
+                         2017.0: ('2017-02-01', '2017-07-31'),
+                        }
+            tab = None
+            for semester in sorted(semesters.keys()):
+                fields = "ReqNo,FromDate,NumNights,Portion,Telescope,Instrument,AllocInst,Site,Mode,Principal,Status"
+                table = "mainlandObs"
+                date1, date2 = semesters[semester]
+                conditions = ["FromDate between '{}' and '{}'".format(date1, date2),
+                              "status = 'approved'"]
+                condition = "where {}".format(" and ".join(conditions))
+                sql = "select {} from {} {}".format(fields, table, condition)
+                with connection.cursor() as cursor:
+                    cursor.execute(sql)
+                    result = cursor.fetchall()
+                    print('{}: found {:d} mainland requests'.format(semester, len(result)))
+                
+                    if len(result) > 0:
+                        new = Table(result, names=names, dtype=dtypes)
+                        sem = Column([semester]*len(new), name='Semester', dtype='f4')
+                        new.add_column(sem)
+                        if not tab:
+                            tab = new
+                        else:
+                            tab = vstack([tab, new])
+                
+
         finally:
             connection.close()
+
+        tab.write(table_file)
+
+    else:
+        print('Reading Local File')
+        tab = Table.read(table_file)
+
+
+    tab.keep_columns(['Status', 'Telescope', 'FromDate', 'Mode', 'NumNights', 'Portion', 'Semester'])
+
+    ## Weight
+    count = {'Full Night': 1., 'Full': 1., 'First Half': 0.5, 'Second Half': 0.5,
+             'Other': 0.0, 'K1': 1., 'K2': 1., 'K1+K2': 2.}
+    weight = [ count[x['Telescope']] * count[x['Portion']] * float(x['NumNights']) for x in tab ]
+    tab.add_column(Column(weight, name='Weight'))
+
+    stab = Table(names=('Semester', 'Eavesdrop Nights', 'Mainland Only Nights'),
+                 dtype=('f4', 'f4', 'f4'))
+
+
+    bysemester = tab.group_by('Semester')
+    mode = {}
+    for i,val in enumerate(bysemester.groups):
+        thissemester = bysemester.groups[i]
+        mainlandonly = thissemester[thissemester['Mode'] == 'Mainland Only']
+        mainlandonly_sum = sum(mainlandonly['Weight'])
+
+        eavesdrop = thissemester[thissemester['Mode'] == 'Eavesdrop']
+        eavesdrop_sum = sum(eavesdrop['Weight'])
+
+        other = thissemester[thissemester['Mode'] != 'Mainland Only']
+        other = other[other['Mode'] != 'Eavesdrop']
+
+        stab.add_row((thissemester[0]['Semester'], eavesdrop_sum, mainlandonly_sum))
+
+    print(stab)
+    
+    plt.figure(figsize=(16,9), dpi=72)
+    plt.bar(stab['Semester'], stab['Eavesdrop Nights'], width=0.4)
+    plt.bar(stab['Semester'], stab['Mainland Only Nights']+stab['Eavesdrop Nights'], width=0.4, alpha=0.4)
+    plt.xlim(2006, 2016.5)
+    plt.xlabel('Semester')
+    plt.ylabel('Nights')
+    plt.grid()
+    plt.savefig('use_by_semester.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
+
 
 
 if __name__ == '__main__':
