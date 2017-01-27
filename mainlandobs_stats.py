@@ -8,6 +8,7 @@ import numpy as np
 from astropy.table import Table, Column, vstack
 
 import matplotlib as mpl
+mpl.rcParams['font.size'] = 18
 import matplotlib.pyplot as plt
 
 def main():
@@ -86,7 +87,9 @@ def main():
         tab = Table.read(table_file)
 
 
-    tab.keep_columns(['Status', 'Telescope', 'FromDate', 'Mode', 'NumNights', 'Portion', 'Semester'])
+
+#     tab.keep_columns(['Status', 'Telescope', 'FromDate', 'Mode', 'NumNights', 'Portion', 'Semester'])
+    print(tab.keys())
 
     ## Weight
     count = {'Full Night': 1., 'Full': 1., 'First Half': 0.5, 'Second Half': 0.5,
@@ -94,35 +97,99 @@ def main():
     weight = [ count[x['Telescope']] * count[x['Portion']] * float(x['NumNights']) for x in tab ]
     tab.add_column(Column(weight, name='Weight'))
 
+
+    colormap = plt.cm.gist_ncar
+    ## ------------------------------------------------------------------------
+    ## Mainland Only and Eavesdrop Use by Semester
+    ## ------------------------------------------------------------------------
     stab = Table(names=('Semester', 'Eavesdrop Nights', 'Mainland Only Nights'),
                  dtype=('f4', 'f4', 'f4'))
-
-
     bysemester = tab.group_by('Semester')
     mode = {}
     for i,val in enumerate(bysemester.groups):
         thissemester = bysemester.groups[i]
         mainlandonly = thissemester[thissemester['Mode'] == 'Mainland Only']
         mainlandonly_sum = sum(mainlandonly['Weight'])
-
         eavesdrop = thissemester[thissemester['Mode'] == 'Eavesdrop']
         eavesdrop_sum = sum(eavesdrop['Weight'])
-
-        other = thissemester[thissemester['Mode'] != 'Mainland Only']
-        other = other[other['Mode'] != 'Eavesdrop']
-
         stab.add_row((thissemester[0]['Semester'], eavesdrop_sum, mainlandonly_sum))
 
-    print(stab)
-    
+
     plt.figure(figsize=(16,9), dpi=72)
-    plt.bar(stab['Semester'], stab['Eavesdrop Nights'], width=0.4)
-    plt.bar(stab['Semester'], stab['Mainland Only Nights']+stab['Eavesdrop Nights'], width=0.4, alpha=0.4)
-    plt.xlim(2006, 2016.5)
+    ax1 = plt.gca()
+    plt.bar(stab['Semester'], stab['Eavesdrop Nights'], width=0.4,
+            label='Eavesdrop')
+    plt.bar(stab['Semester'], stab['Mainland Only Nights']+stab['Eavesdrop Nights'],
+            width=0.4, alpha=0.4, label='Mainland Only')
+    plt.ylim(0,300)
+    plt.xlim(2006, 2017)
     plt.xlabel('Semester')
     plt.ylabel('Nights')
     plt.grid()
+    plt.legend(loc='best')
+    
+    ax2 = ax1.twinx()
+    plt.ylabel('Fraction of Total Nights')
+    plt.ylim(0,300./2./365.)
     plt.savefig('use_by_semester.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
+
+
+    ## ------------------------------------------------------------------------
+    ## Use by Site
+    ## ------------------------------------------------------------------------
+    sitecounts = {}
+    for i,entry in enumerate(tab):
+        sites = entry['Site'].split(' ')
+        weight = entry['Weight']
+        for site in sites:
+            if site not in sitecounts.keys():
+                sitecounts[site] = weight
+            else:
+                sitecounts[site] += weight
+
+    sitelist = sorted(sitecounts.keys())
+    countlist = [sitecounts[site] for site in sitelist]
+    labels = ['{}: {:.0f}%'.format(site, sitecounts[site]/sum(countlist)*100.)
+              for site in sitelist]
+    colors = colormap(np.arange(len(countlist))/len(countlist))
+
+    plt.figure(figsize=(12,9), dpi=72)
+    ax = plt.gca()
+    ax.set_aspect('equal')
+    plt.pie(countlist, labels=labels, colors=colors)
+    plt.title('Use by Site')
+    plt.savefig('use_by_site.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
+
+
+    ## ------------------------------------------------------------------------
+    ## Use by Instrument
+    ## ------------------------------------------------------------------------
+    instruments = {'NIRSPAO': 0., 'NIRSPEC': 0., 'DEIMOS': 0., 'ESI': 0., 'NIRC2': 0.,
+                   'LRIS': 0., 'MOSFIRE': 0., 'HIRES': 0., 'OSIRIS': 0.,
+                   'Other': 0.}
+    
+    for i,entry in enumerate(tab):
+        instlist = entry['Instrument'].split(',')
+        weight = entry['Weight']
+        for inst in instlist:
+            if inst in instruments.keys():
+                instruments[inst] += weight
+            else:
+                instruments['Other'] += weight
+
+    instlist = ['NIRSPAO', 'NIRSPEC', 'DEIMOS', 'ESI', 'NIRC2',
+                'LRIS', 'MOSFIRE', 'HIRES', 'OSIRIS', 'Other']
+    countlist = [instruments[inst] for inst in instlist]
+    labels = ['{}: {:.0f}%'.format(inst, instruments[inst]/sum(countlist)*100.)
+              for inst in instlist]
+    colors = colormap(np.arange(len(countlist))/len(countlist))
+
+    plt.figure(figsize=(12,9), dpi=72)
+    ax = plt.gca()
+    ax.set_aspect('equal')
+    plt.pie(countlist, labels=labels, colors=colors)
+    plt.title('Use by Instrument')
+    plt.savefig('use_by_instrument.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
 
 
 
