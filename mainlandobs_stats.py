@@ -130,7 +130,7 @@ def main():
     
     ax2 = ax1.twinx()
     plt.ylabel('Fraction of Total Nights')
-    plt.ylim(0,300./2./365.)
+    plt.ylim(0,300./365.*2./2.)
     plt.savefig('use_by_semester.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
 
 
