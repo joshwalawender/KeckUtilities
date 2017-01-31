@@ -22,36 +22,60 @@ class ParseError(Exception):
     def __str__(self):
         return repr(self.value)
 
+
 ##-------------------------------------------------------------------------
-## Generate ICS Entry
+## ICS File Object
 ##-------------------------------------------------------------------------
-def ics_entry(FO, title, starttime, endtime, description, verbose=False):
-    assert type(title) is str
-    assert type(starttime) in [dt, str]
-    assert type(endtime) in [dt, str]
-    assert type(description) in [list, str]
-    now = dt.utcnow()
-    try:
-        starttime = starttime.strftime('%Y%m%dT%H%M%S')
-    except:
-        pass
-    try:
-        endtime = endtime.strftime('%Y%m%dT%H%M%S')
-    except:
-        pass
-    if verbose:
-        print('{} {}'.format(starttime[0:8], title))
-    if type(description) is list:
-        description = '\\n'.join(description)
-    FO.write('BEGIN:VEVENT\n')
-    FO.write('UID:{}@mycalendar.com\n'.format(now.strftime('%Y%m%dT%H%M%S.%fZ')))
-    FO.write('DTSTAMP:{}\n'.format(now.strftime('%Y%m%dT%H%M%SZ')))
-    FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(starttime))
-    FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(endtime))
-    FO.write('SUMMARY:{}\n'.format(title))
-    FO.write('DESCRIPTION: {}\n'.format(description))
-    FO.write('END:VEVENT\n')
-    FO.write('\n')
+class ICSFile(object):
+    '''
+    Class to represent an ICS calendar file.
+    '''
+    def __init__(self, filename):
+        self.file = filename
+        self.lines = ['BEGIN:VCALENDAR\n',
+                      'PRODID:-//hacksw/handcal//NONSGML v1.0//EN\n',
+                      '\n']
+
+
+    def add_event(self, title, starttime, endtime, description, verbose=False):
+        assert type(title) is str
+        assert type(starttime) in [dt, str]
+        assert type(endtime) in [dt, str]
+        assert type(description) in [list, str]
+        now = dt.utcnow()
+        try:
+            starttime = starttime.strftime('%Y%m%dT%H%M%S')
+        except:
+            pass
+        try:
+            endtime = endtime.strftime('%Y%m%dT%H%M%S')
+        except:
+            pass
+        if verbose:
+            print('{} {}'.format(starttime[0:8], title))
+        if type(description) is list:
+            description = '\\n'.join(description)
+        new_lines = ['BEGIN:VEVENT\n',
+                     'UID:{}@mycalendar.com\n'.format(now.strftime('%Y%m%dT%H%M%S.%fZ')),
+                     'DTSTAMP:{}\n'.format(now.strftime('%Y%m%dT%H%M%SZ')),
+                     'DTSTART;TZID=Pacific/Honolulu:{}\n'.format(starttime),
+                     'DTEND;TZID=Pacific/Honolulu:{}\n'.format(endtime),
+                     'SUMMARY:{}\n'.format(title),
+                     'DESCRIPTION: {}\n'.format(description),
+                     'END:VEVENT\n',
+                     '\n',
+                     ]
+        self.lines.extend(new_lines)
+
+
+    def write(self):
+        self.lines.append('END:VCALENDAR\n')
+        if os.path.exists(self.file): os.remove(self.file)
+        with open(self.file, 'w') as FO:
+            for line in self.lines:
+                FO.write(line)
+            
+
 
 
 ##-------------------------------------------------------------------------
@@ -125,14 +149,6 @@ def main():
             'K2oc': 'On Call',
             }
 
-    ##-------------------------------------------------------------------------
-    ## Create Output iCal File
-    ##-------------------------------------------------------------------------
-    ical_file = 'Nights.ics'
-    if os.path.exists(ical_file): os.remove(ical_file)
-    now = dt.utcnow()
-    uid = now.strftime('%Y%m%dT%H%M%SZ')
-
     obs = Observer.at_site('Keck')
     HST = TimezoneInfo(utc_offset=-10*u.hour, tzname='HST')
     ## Calculate Elevation of True Horizon from Maunakea
@@ -146,92 +162,68 @@ def main():
     min_before_sunset = 30.
     min_after_sunrise = 30.
 
-    with open(ical_file, 'w') as FO:
-        FO.write('BEGIN:VCALENDAR\n'.format())
-        FO.write('PRODID:-//hacksw/handcal//NONSGML v1.0//EN\n'.format())
-        for night in sasched:
-            date = night['Date']
-            telstr = night[saname]
-            print('  {} {}'.format(night['Date'], telstr))
-            time = Time('{} 23:00:00'.format(date))
+    ##-------------------------------------------------------------------------
+    ## Create Output iCal File
+    ##-------------------------------------------------------------------------
+    ical_file = ICSFile('Nights.ics')
 
-            sunset = obs.sun_set_time(time, which='next', horizon=MKhorizon)
-            dusk_nauti = obs.sun_set_time(time, which='next', horizon=-12*u.deg)
-#             dusk_astro = obs.sun_set_time(time, which='next', horizon=-18*u.deg)
-            sunrise = obs.sun_rise_time(time, which='next', horizon=MKhorizon)
-            dawn_nauti = obs.sun_rise_time(time, which='next', horizon=-12*u.deg)
-#             dawn_astro = obs.sun_rise_time(time, which='next', horizon=-18*u.deg)
+    for night in sasched:
+        date = night['Date']
+        telstr = night[saname]
+        print('  {} {}'.format(night['Date'], telstr))
+        time = Time('{} 23:00:00'.format(date))
 
-#             if obs.moon_altaz(sunset).alt > 0*u.deg:
-#                 moon_set = obs.moon_set_time(sunset, which='next',
-#                                              horizon=MKhorizon)
-#                 print('Moon Set at {}'.format(moon_set))
-#             else:
-#                 moon_rise = obs.moon_rise_time(sunset, which='next',
-#                                                horizon=MKhorizon)
-#                 print('Moon Rise at {}'.format(moon_rise))
+        sunset = obs.sun_set_time(time, which='next', horizon=MKhorizon)
+        dusk_nauti = obs.sun_set_time(time, which='next', horizon=-12*u.deg)
+        sunrise = obs.sun_rise_time(time, which='next', horizon=MKhorizon)
+        dawn_nauti = obs.sun_rise_time(time, which='next', horizon=-12*u.deg)
 
-            if args.start:
-                calend = '{}T{}'.format(date.replace('-', ''), args.start)
-            else:
-                calstart = (sunset.to_datetime(timezone=HST)\
-                            - tdelta(0,min_before_sunset*60.)).strftime('%Y%m%dT%H%M%S')
-            if args.end:
-                calend = '{}T{}'.format(date.replace('-', ''), args.end)
-            else:
-                calend = (sunrise.to_datetime(timezone=HST)\
-                          + tdelta(0,min_after_sunrise*60.)).strftime('%Y%m%dT%H%M%S')
+#         if obs.moon_altaz(sunset).alt > 0*u.deg:
+#             moon_set = obs.moon_set_time(sunset, which='next',
+#                                          horizon=MKhorizon)
+#             print('Moon Set at {}'.format(moon_set))
+#         else:
+#             moon_rise = obs.moon_rise_time(sunset, which='next',
+#                                            horizon=MKhorizon)
+#             print('Moon Rise at {}'.format(moon_rise))
 
-            tel = int(night[saname][1:2])
-            entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == tel)]
-            assert len(entry) == 1
+        if args.start:
+            calend = '{}T{}'.format(date.replace('-', ''), args.start)
+        else:
+            calstart = (sunset.to_datetime(timezone=HST)\
+                        - tdelta(0,min_before_sunset*60.)).strftime('%Y%m%dT%H%M%S')
+        if args.end:
+            calend = '{}T{}'.format(date.replace('-', ''), args.end)
+        else:
+            calend = (sunrise.to_datetime(timezone=HST)\
+                      + tdelta(0,min_after_sunrise*60.)).strftime('%Y%m%dT%H%M%S')
 
-            title = '{} {} ({})'.format(entry['Instrument'][0],
-                                                 type[telstr],
-                                                 entry['Location'][0])
-            description = ['Sunset @ {}'.format(
-                               sunset.to_datetime(timezone=HST).strftime('%H:%M') ),
-                           '12 deg Twilight @ {}'.format(
-                               dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
-                           '12 deg Twilight @ {}'.format(
-                               dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
-                           'Sunrise @ {}'.format(
-                               sunrise.to_datetime(timezone=HST).strftime('%H:%M') ),
-                           'PI: {}'.format(entry['Principal'][0]),
-                           'Observers: {}'.format(entry['Observers'][0]),
-                           'Location: {}'.format(entry['Location'][0]),
-                           'Account: {}'.format(entry['InstrAcc'][0]),
-                           ]
+        tel = int(night[saname][1:2])
+        entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == tel)]
+        assert len(entry) == 1
+        title = '{} {} ({})'.format(entry['Instrument'][0],
+                                             type[telstr],
+                                             entry['Location'][0])
+        description = ['Sunset @ {}'.format(
+                           sunset.to_datetime(timezone=HST).strftime('%H:%M') ),
+                       '12 deg Twilight @ {}'.format(
+                           dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                       '12 deg Twilight @ {}'.format(
+                           dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                       'Sunrise @ {}'.format(
+                           sunrise.to_datetime(timezone=HST).strftime('%H:%M') ),
+                       'PI: {}'.format(entry['Principal'][0]),
+                       'Observers: {}'.format(entry['Observers'][0]),
+                       'Location: {}'.format(entry['Location'][0]),
+                       'Account: {}'.format(entry['InstrAcc'][0]),
+                       ]
                            
-            ics_entry(FO, title, calstart, calend, description)
+        ical_file.add_event(title, calstart, calend, description)
 
-            
-#             FO.write('BEGIN:VEVENT\n')
-#             FO.write('UID:{}-{:04d}@kecksupportcalendar.com\n'.format(uid, entry['#'][0]))
-#             FO.write('DTSTAMP:{}\n'.format(uid))
-#             FO.write('DTSTART;TZID=Pacific/Honolulu:{}\n'.format(calstart))
-#             FO.write('DTEND;TZID=Pacific/Honolulu:{}\n'.format(calend))
-#             FO.write('SUMMARY:{} {} ({})\n'.format(entry['Instrument'][0],
-#                                                  type[telstr],
-#                                                  entry['Location'][0],
-#                                                  ))
-#             FO.write('DESCRIPTION: Sunset @ {} / 12 deg Twilight @ {}\\n'\
-#                                   'Sunrise @ {} / 12 deg Twilight @ {}\\n'\
-#                                   'PI: {}\\n'\
-#                                   'Observers: {}\\n'\
-#                                   'Location: {}\\n'\
-#                                   'Account: {}\n'.format(
-#                      sunset.to_datetime(timezone=HST).strftime('%H:%M'),
-#                      dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-#                      sunrise.to_datetime(timezone=HST).strftime('%H:%M'),
-#                      dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M'),
-#                      entry['Principal'][0],
-#                      entry['Observers'][0],
-#                      entry['Location'][0],
-#                      entry['InstrAcc'][0]))
-#             FO.write('END:VEVENT\n')
-        FO.write('END:VCALENDAR\n')
+    ical_file.write()
 
 
 if __name__ == '__main__':
     main()
+
+
