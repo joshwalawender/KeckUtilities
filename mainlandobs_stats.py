@@ -1,6 +1,8 @@
 import sys
 import os
 
+from datetime import datetime as dt
+
 import pymysql
 import pymysql.cursors
 
@@ -12,6 +14,32 @@ mpl.rcParams['font.size'] = 18
 import matplotlib.pyplot as plt
 
 def main():
+
+    semesters = {2005.5: ('2005-08-01', '2006-01-31'),
+                 2006.0: ('2006-02-01', '2006-07-31'),
+                 2006.5: ('2006-08-01', '2007-01-31'),
+                 2007.0: ('2007-02-01', '2007-07-31'),
+                 2007.5: ('2007-08-01', '2008-01-31'),
+                 2008.0: ('2008-02-01', '2008-07-31'),
+                 2008.5: ('2008-08-01', '2009-01-31'),
+                 2009.0: ('2009-02-01', '2009-07-31'),
+                 2009.5: ('2009-08-01', '2010-01-31'),
+                 2010.0: ('2010-02-01', '2010-07-31'),
+                 2010.5: ('2010-08-01', '2011-01-31'),
+                 2011.0: ('2011-02-01', '2011-07-31'),
+                 2011.5: ('2011-08-01', '2012-01-31'),
+                 2012.0: ('2012-02-01', '2012-07-31'),
+                 2012.5: ('2012-08-01', '2013-01-31'),
+                 2013.0: ('2013-02-01', '2013-07-31'),
+                 2013.5: ('2013-08-01', '2014-01-31'),
+                 2014.0: ('2014-02-01', '2014-07-31'),
+                 2014.5: ('2014-08-01', '2015-01-31'),
+                 2015.0: ('2015-02-01', '2015-07-31'),
+                 2015.5: ('2015-08-01', '2016-01-31'),
+                 2016.0: ('2016-02-01', '2016-07-31'),
+                 2016.5: ('2016-08-01', '2017-01-31'),
+                 2017.0: ('2017-02-01', '2017-07-31'),
+                }
 
     table_file = 'MainlandObserving.csv'
     if not os.path.exists(table_file):
@@ -28,31 +56,6 @@ def main():
         dtypes = ['a20', 'a8', 'i8', 'a20', 'a20', 'a20', 'a20', 'a20', 'a20', 'i4', 'a40']
 
         try:
-            semesters = {2005.5: ('2005-08-01', '2006-01-31'),
-                         2006.0: ('2006-02-01', '2006-07-31'),
-                         2006.5: ('2006-08-01', '2007-01-31'),
-                         2007.0: ('2007-02-01', '2007-07-31'),
-                         2007.5: ('2007-08-01', '2008-01-31'),
-                         2008.0: ('2008-02-01', '2008-07-31'),
-                         2008.5: ('2008-08-01', '2009-01-31'),
-                         2009.0: ('2009-02-01', '2009-07-31'),
-                         2009.5: ('2009-08-01', '2010-01-31'),
-                         2010.0: ('2010-02-01', '2010-07-31'),
-                         2010.5: ('2010-08-01', '2011-01-31'),
-                         2011.0: ('2011-02-01', '2011-07-31'),
-                         2011.5: ('2011-08-01', '2012-01-31'),
-                         2012.0: ('2012-02-01', '2012-07-31'),
-                         2012.5: ('2012-08-01', '2013-01-31'),
-                         2013.0: ('2013-02-01', '2013-07-31'),
-                         2013.5: ('2013-08-01', '2014-01-31'),
-                         2014.0: ('2014-02-01', '2014-07-31'),
-                         2014.5: ('2014-08-01', '2015-01-31'),
-                         2015.0: ('2015-02-01', '2015-07-31'),
-                         2015.5: ('2015-08-01', '2016-01-31'),
-                         2016.0: ('2016-02-01', '2016-07-31'),
-                         2016.5: ('2016-08-01', '2017-01-31'),
-                         2017.0: ('2017-02-01', '2017-07-31'),
-                        }
             tab = None
             for semester in sorted(semesters.keys()):
                 fields = "ReqNo,FromDate,NumNights,Portion,Telescope,Instrument,AllocInst,Site,Mode,Principal,Status"
@@ -89,7 +92,7 @@ def main():
 
 
 #     tab.keep_columns(['Status', 'Telescope', 'FromDate', 'Mode', 'NumNights', 'Portion', 'Semester'])
-    print(tab.keys())
+#     print(tab.keys())
 
     ## Weight
     count = {'Full Night': 1., 'Full': 1., 'First Half': 0.5, 'Second Half': 0.5,
@@ -99,6 +102,40 @@ def main():
 
 
     colormap = plt.cm.gist_ncar
+
+
+    ## ------------------------------------------------------------------------
+    ## Number of Sites Over Time
+    ## ------------------------------------------------------------------------
+    tab.sort('FromDate')
+    sitestab = Table(names=('Site', 'Eavesdrop', 'Mainland Only'), dtype=('a20', 'a10', 'a10'))
+
+    for i,entry in enumerate(tab):
+        sites = entry['Site'].split(' ')
+        for site in sites:
+            if site not in sitestab['Site'].data.astype(str) and site != 'Other':
+                if entry['Mode'] == 'Mainland Only':
+                    sitestab.add_row((site, '-', entry['FromDate']))
+                elif entry['Mode'] == 'Eavesdrop':
+                    sitestab.add_row((site, entry['FromDate'], '-'))
+            elif entry['Mode'] in ['Eavesdrop', 'Mainland Only']:
+                if sitestab[np.where(sitestab['Site'].data.astype(str) == site)][entry['Mode']] == b'-':
+                    sitestab[entry['Mode']][np.where(sitestab['Site'].data.astype(str) == site)] = entry['FromDate']
+
+    print(sitestab)
+
+#     mo = [dt.strptime(x, '%Y-%m-%d') for x in sitestab['Mainland Only'].data.astype(str)]
+#     e = [dt.strptime(x, '%Y-%m-%d') for x in sitestab['Eavesdrop'].data.astype(str)]
+#     sitestab.add_column(Column(data=mo, name='MO'))
+#     sitestab.add_column(Column(data=e, name='E'))
+#     neavesdrop = []
+#     nmainaldnonly = []
+#     for semester in sorted(semesters.keys()):
+#         print(
+#         neavesdrop.append()
+#         nmainlandonly.append()
+#     sys.exit(0)
+
     ## ------------------------------------------------------------------------
     ## Mainland Only and Eavesdrop Use by Semester
     ## ------------------------------------------------------------------------
