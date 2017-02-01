@@ -10,7 +10,7 @@ import numpy as np
 from astropy.table import Table, Column, vstack
 
 import matplotlib as mpl
-mpl.rcParams['font.size'] = 18
+mpl.rcParams['font.size'] = 24
 import matplotlib.pyplot as plt
 
 def main():
@@ -154,10 +154,10 @@ def main():
 
     plt.figure(figsize=(16,9), dpi=72)
     ax1 = plt.gca()
-    plt.bar(stab['Semester'], stab['Eavesdrop Nights'], width=0.4,
-            label='Eavesdrop')
+    plt.bar(stab['Semester'], stab['Mainland Only Nights'], width=0.4,
+            label='Mainland Only')
     plt.bar(stab['Semester'], stab['Mainland Only Nights']+stab['Eavesdrop Nights'],
-            width=0.4, alpha=0.4, label='Mainland Only')
+            width=0.4, alpha=0.4, label='Eavesdrop')
     plt.ylim(0,300)
     plt.xlim(2006, 2017)
     plt.xlabel('Semester')
@@ -193,7 +193,22 @@ def main():
     plt.figure(figsize=(12,9), dpi=72)
     ax = plt.gca()
     ax.set_aspect('equal')
-    plt.pie(countlist, labels=labels, colors=colors)
+    patches, plt_labels = plt.pie(countlist, labels=labels, colors=colors, startangle=90)
+    plt_labels[3].get_position()
+    plt_labels[3].get_rotation()
+    plt_labels[3]._y += 0.02
+    plt_labels[3]._x += 0.02
+    plt_labels[4].get_position()
+    plt_labels[4].get_rotation()
+    plt_labels[4]._y -= 0.04
+    plt_labels[4]._x += 0.10
+    plt_labels[5].get_position()
+    plt_labels[5].get_rotation()
+    plt_labels[5]._y -= 0.09
+    plt_labels[5]._x += 0.09
+    plt_labels[13].get_position()
+    plt_labels[13].get_rotation()
+    plt_labels[13]._y -= 0.03
     plt.title('Use by Site')
     plt.savefig('use_by_site.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
 
@@ -224,7 +239,13 @@ def main():
     plt.figure(figsize=(12,9), dpi=72)
     ax = plt.gca()
     ax.set_aspect('equal')
-    plt.pie(countlist, labels=labels, colors=colors)
+    patches, plt_labels = plt.pie(countlist, labels=labels, colors=colors)
+    plt_labels[3].get_position()
+    plt_labels[3].get_rotation()
+    plt_labels[3]._x += 0.11
+    plt_labels[9].get_position()
+    plt_labels[9].get_rotation()
+    plt_labels[9]._y -= 0.03
     plt.title('Use by Instrument')
     plt.savefig('use_by_instrument.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
 
