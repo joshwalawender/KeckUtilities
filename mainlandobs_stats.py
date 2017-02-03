@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 def main():
 
+    colormap = plt.cm.gist_ncar
     semesters = {2005.5: ('2005-08-01', '2006-01-31'),
                  2006.0: ('2006-02-01', '2006-07-31'),
                  2006.5: ('2006-08-01', '2007-01-31'),
@@ -89,19 +90,16 @@ def main():
         print('Reading Local File')
         tab = Table.read(table_file)
 
-
-
-#     tab.keep_columns(['Status', 'Telescope', 'FromDate', 'Mode', 'NumNights', 'Portion', 'Semester'])
-#     print(tab.keys())
+    ## Do not use 2017A semester requests
+    tab.remove_rows(tab['Semester'] == 2017.0)
 
     ## Weight
     count = {'Full Night': 1., 'Full': 1., 'First Half': 0.5, 'Second Half': 0.5,
              'Other': 0.0, 'K1': 1., 'K2': 1., 'K1+K2': 2.}
     weight = [ count[x['Telescope']] * count[x['Portion']] * float(x['NumNights']) for x in tab ]
+    unscaledweight = [ count[x['Telescope']] * float(x['NumNights']) for x in tab ]
     tab.add_column(Column(weight, name='Weight'))
-
-
-    colormap = plt.cm.gist_ncar
+    tab.add_column(Column(unscaledweight, name='Unscaled Weight'))
 
 
     ## ------------------------------------------------------------------------
@@ -122,19 +120,9 @@ def main():
                 if sitestab[np.where(sitestab['Site'].data.astype(str) == site)][entry['Mode']] == b'-':
                     sitestab[entry['Mode']][np.where(sitestab['Site'].data.astype(str) == site)] = entry['FromDate']
 
+    print('First use date by site and mode:')
     print(sitestab)
-
-#     mo = [dt.strptime(x, '%Y-%m-%d') for x in sitestab['Mainland Only'].data.astype(str)]
-#     e = [dt.strptime(x, '%Y-%m-%d') for x in sitestab['Eavesdrop'].data.astype(str)]
-#     sitestab.add_column(Column(data=mo, name='MO'))
-#     sitestab.add_column(Column(data=e, name='E'))
-#     neavesdrop = []
-#     nmainaldnonly = []
-#     for semester in sorted(semesters.keys()):
-#         print(
-#         neavesdrop.append()
-#         nmainlandonly.append()
-#     sys.exit(0)
+    print()
 
     ## ------------------------------------------------------------------------
     ## Mainland Only and Eavesdrop Use by Semester
@@ -189,6 +177,11 @@ def main():
     labels = ['{}: {:.0f}%'.format(site, sitecounts[site]/sum(countlist)*100.)
               for site in sitelist]
     colors = colormap(np.arange(len(countlist))/len(countlist))
+
+    UCcounts = [sitecounts[site] for site in ['UCB', 'UCD', 'UCI', 'UCLA', 'UCR', 'UCSB', 'UCSC', 'UCSD']]
+    UCpct = sum(UCcounts) / sum(countlist)*100.
+    print('UC System Use = {:.1f} ({:.1f} %)'.format(sum(UCcounts), UCpct))
+
 
     plt.figure(figsize=(12,9), dpi=72)
     ax = plt.gca()
@@ -249,6 +242,14 @@ def main():
     plt.title('Use by Instrument')
     plt.savefig('use_by_instrument.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
 
+    K1counts = [instruments[inst] for inst in ['LRIS', 'MOSFIRE', 'HIRES', 'OSIRIS']]
+    K2counts = [instruments[inst] for inst in ['NIRSPAO', 'NIRSPEC', 'DEIMOS', 'ESI', 'NIRC2']]
+    K1total = sum(K1counts)
+    K2total = sum(K2counts)
+    K1pct = K1total / sum(countlist)*100.
+    K2pct = K2total / sum(countlist)*100.
+    print('Total K1 nights = {:.1f} ({:.1f} %)'.format(K1total, K1pct))
+    print('Total K2 nights = {:.1f} ({:.1f} %)'.format(K2total, K2pct))
 
 
 if __name__ == '__main__':
