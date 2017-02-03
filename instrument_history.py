@@ -15,7 +15,8 @@ def main():
     sched = Table.read(history_file, format='ascii.csv', guess=False)
     year = [int(x[0:4]) for x in sched['Date']]
     sched.add_column(Column(year, name='year'))
-    nightfrac = [1./min([2,len(x.split('/'))]) for x in sched['Instrument']]
+#     nightfrac = [1./min([2,len(x.split('/'))]) for x in sched['Instrument']]
+    nightfrac = [1. for x in sched['Instrument']]
     sched.add_column(Column(nightfrac, name='fraction'))
     
     years = []
