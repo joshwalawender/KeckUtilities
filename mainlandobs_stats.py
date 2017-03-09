@@ -140,7 +140,7 @@ def main():
         stab.add_row((thissemester[0]['Semester'], eavesdrop_sum, mainlandonly_sum))
 
 
-    plt.figure(figsize=(16,9), dpi=72)
+    plt.figure(figsize=(16,9), dpi=300)
     ax1 = plt.gca()
     plt.bar(stab['Semester'], stab['Mainland Only Nights'], width=0.4,
             label='Mainland Only')
@@ -156,7 +156,7 @@ def main():
     ax2 = ax1.twinx()
     plt.ylabel('Fraction of Total Nights')
     plt.ylim(0,300./365.*2./2.)
-    plt.savefig('use_by_semester.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig('use_by_semester.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
 
 
     ## ------------------------------------------------------------------------
@@ -183,7 +183,7 @@ def main():
     print('UC System Use = {:.1f} ({:.1f} %)'.format(sum(UCcounts), UCpct))
 
 
-    plt.figure(figsize=(12,9), dpi=72)
+    plt.figure(figsize=(12,9), dpi=300)
     ax = plt.gca()
     ax.set_aspect('equal')
     patches, plt_labels = plt.pie(countlist, labels=labels, colors=colors, startangle=90)
@@ -203,7 +203,7 @@ def main():
     plt_labels[13].get_rotation()
     plt_labels[13]._y -= 0.03
     plt.title('Use by Site')
-    plt.savefig('use_by_site.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig('use_by_site.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
 
 
     ## ------------------------------------------------------------------------
@@ -229,7 +229,7 @@ def main():
               for inst in instlist]
     colors = colormap(np.arange(len(countlist))/len(countlist))
 
-    plt.figure(figsize=(12,9), dpi=72)
+    plt.figure(figsize=(12,9), dpi=300)
     ax = plt.gca()
     ax.set_aspect('equal')
     patches, plt_labels = plt.pie(countlist, labels=labels, colors=colors)
@@ -240,7 +240,7 @@ def main():
     plt_labels[9].get_rotation()
     plt_labels[9]._y -= 0.03
     plt.title('Use by Instrument')
-    plt.savefig('use_by_instrument.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig('use_by_instrument.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
 
     K1counts = [instruments[inst] for inst in ['LRIS', 'MOSFIRE', 'HIRES', 'OSIRIS']]
     K2counts = [instruments[inst] for inst in ['NIRSPAO', 'NIRSPEC', 'DEIMOS', 'ESI', 'NIRC2']]
