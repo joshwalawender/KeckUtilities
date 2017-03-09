@@ -142,10 +142,10 @@ def main():
 
     plt.figure(figsize=(16,9), dpi=300)
     ax1 = plt.gca()
-    plt.bar(stab['Semester'], stab['Mainland Only Nights'], width=0.4,
-            label='Mainland Only')
+    plt.bar(stab['Semester'], stab['Mainland Only Nights'],
+            width=0.4, color='b', alpha=0.9, label='Mainland Only')
     plt.bar(stab['Semester'], stab['Mainland Only Nights']+stab['Eavesdrop Nights'],
-            width=0.4, alpha=0.4, label='Eavesdrop')
+            width=0.4, color='b', alpha=0.3, label='Eavesdrop')
     plt.ylim(0,300)
     plt.xlim(2006, 2017)
     plt.xlabel('Semester')
