@@ -147,9 +147,13 @@ def main():
             'K2': 'Support',
             'K2T': 'Training',
             'K2oc': 'On Call',
+            'K1K2': 'Dual Support',
             }
 
-    obs = Observer.at_site('Keck')
+#     obs = Observer.at_site('Keck')
+    obs = Observer(name='Keck',
+                   longitude=-155.4747185138889, latitude=19.825946547222223,
+                   elevation=4159.581216*u.meter)
     HST = TimezoneInfo(utc_offset=-10*u.hour, tzname='HST')
     ## Calculate Elevation of True Horizon from Maunakea
     ##   Formulas from https://en.wikipedia.org/wiki/Horizon
@@ -198,27 +202,67 @@ def main():
             calend = (sunrise.to_datetime(timezone=HST)\
                       + tdelta(0,min_after_sunrise*60.)).strftime('%Y%m%dT%H%M%S')
 
-        tel = int(night[saname][1:2])
-        entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == tel)]
-        assert len(entry) == 1
-        title = '{} {} ({})'.format(entry['Instrument'][0],
-                                             type[telstr],
-                                             entry['Location'][0])
-        description = ['Sunset @ {}'.format(
-                           sunset.to_datetime(timezone=HST).strftime('%H:%M') ),
-                       '12 deg Twilight @ {}'.format(
-                           dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
-                       '12 deg Twilight @ {}'.format(
-                           dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
-                       'Sunrise @ {}'.format(
-                           sunrise.to_datetime(timezone=HST).strftime('%H:%M') ),
-                       'PI: {}'.format(entry['Principal'][0]),
-                       'Observers: {}'.format(entry['Observers'][0]),
-                       'Location: {}'.format(entry['Location'][0]),
-                       'Account: {}'.format(entry['InstrAcc'][0]),
-                       ]
-                           
-        ical_file.add_event(title, calstart, calend, description)
+        if telstr != 'K1K2':
+            tel = int(night[saname][1:2])
+            entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == tel)]
+            assert len(entry) == 1
+            title = '{} {} ({})'.format(entry['Instrument'][0],
+                                                 type[telstr],
+                                                 entry['Location'][0])
+            description = ['Sunset @ {}'.format(
+                               sunset.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'Sunrise @ {}'.format(
+                               sunrise.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'PI: {}'.format(entry['Principal'][0]),
+                           'Observers: {}'.format(entry['Observers'][0]),
+                           'Location: {}'.format(entry['Location'][0]),
+                           'Account: {}'.format(entry['InstrAcc'][0]),
+                           ]
+            ical_file.add_event(title, calstart, calend, description)
+        else:
+            entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == 1)]
+            assert len(entry) == 1
+            title = '{} {} ({})'.format(entry['Instrument'][0],
+                                                 type[telstr],
+                                                 entry['Location'][0])
+            description = ['Sunset @ {}'.format(
+                               sunset.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'Sunrise @ {}'.format(
+                               sunrise.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'PI: {}'.format(entry['Principal'][0]),
+                           'Observers: {}'.format(entry['Observers'][0]),
+                           'Location: {}'.format(entry['Location'][0]),
+                           'Account: {}'.format(entry['InstrAcc'][0]),
+                           ]
+            ical_file.add_event(title, calstart, calend, description)
+
+            entry = telsched[(telsched['Date'] == date) & (telsched['TelNr'] == 2)]
+            assert len(entry) == 1
+            title = '{} {} ({})'.format(entry['Instrument'][0],
+                                                 type[telstr],
+                                                 entry['Location'][0])
+            description = ['Sunset @ {}'.format(
+                               sunset.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dusk_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           '12 deg Twilight @ {}'.format(
+                               dawn_nauti.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'Sunrise @ {}'.format(
+                               sunrise.to_datetime(timezone=HST).strftime('%H:%M') ),
+                           'PI: {}'.format(entry['Principal'][0]),
+                           'Observers: {}'.format(entry['Observers'][0]),
+                           'Location: {}'.format(entry['Location'][0]),
+                           'Account: {}'.format(entry['InstrAcc'][0]),
+                           ]
+            ical_file.add_event(title, calstart, calend, description)
 
     ical_file.write()
 
