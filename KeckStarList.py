@@ -44,11 +44,13 @@ def parse_arg(arg):
     MO = re.match('(\w+)=([\w\d\-\+\.]+)', arg)
     if MO:
         keyword = MO.group(1)
-        assert keyword in arguments.keys()
-        if arguments[keyword] == 'float':
-            result = float(MO.group(2))
-        elif arguments[keyword] == 'word':
-            result = str(MO.group(2))
+        if keyword in arguments.keys():
+            if arguments[keyword] == 'float':
+                result = float(MO.group(2))
+            elif arguments[keyword] == 'word':
+                result = str(MO.group(2))
+        else:
+            result = MO.group(2)
         ## rotmode must be pa, vertical, or stationary
         if keyword == 'rotmode':
             assert result in ['pa', 'vertical', 'stationary']
@@ -57,8 +59,9 @@ def parse_arg(arg):
         ##   counterclockwise with az decreasing)
         if keyword == 'wrap':
             assert result in ['shortest', 'south', 'north']
-
-    return keyword, result
+        return keyword, result
+    else:
+        return None, None
 
 
 ##-------------------------------------------------------------------------
@@ -270,6 +273,7 @@ class StarList(object):
 
 
 if __name__ == '__main__':
-    sl = StarList('sample_star_list.txt')
+#     sl = StarList('sample_star_list.txt')
+    sl = StarList('/Users/jwalawender/Dropbox/Keck/MOSFIRE/EngPlan/PhotometricStandards.txt')
     sl.export_text_file('output.txt')
     sl.write('starlist.txt')
