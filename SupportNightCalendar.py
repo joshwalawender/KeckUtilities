@@ -148,6 +148,9 @@ def main():
             'K2T': 'Training',
             'K2oc': 'On Call',
             'K1K2': 'Dual Support',
+            'K1ocK2': 'Dual Support',
+            'K1K2oc': 'Dual Support',
+            'K1ocK2oc': 'Dual Support',
             }
 
 #     obs = Observer.at_site('Keck')
