@@ -34,6 +34,20 @@ def main():
     plt.grid()
     plt.savefig('HIRES.png', dpi=72, bbox_inches='tight', pad_inches=0.1)
     
+
+def fix_csv():
+
+    with open('HIRES_history2.csv', 'r') as FO:
+        contents = FO.read()
+    lines = contents.split('\n')
+
+    if os.path.exists('HIRES_history2b.csv'):
+        os.remove('HIRES_history2b.csv')
+    with open('HIRES_history2b.csv', 'w') as OFO:
+        for line in lines:
+            OFO.write('{}\n'.format(line.encode('utf-8').decode()))
+    
     
 if __name__ == '__main__':
-    main()
+#     main()
+    fix_csv()
