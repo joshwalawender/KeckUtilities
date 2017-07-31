@@ -6,8 +6,6 @@ A few utility scripts for use at Keck Observatory.
 
 Used to generate an ICS file (for use in typical calendar applications) of support nights.
 
-The latest updated removed the need to separately download the telescope schedule and it queries the telescope database directly (via web interface).
-
 To use, clone this repository to your machine:
 ```
 git clone https://github.com/joshwalawender/KeckUtilities.git
@@ -24,7 +22,7 @@ The `--end 2018-01-31` option tells the program to look at the schedule from tod
 
 The `--sa Josh` option means that the program will search (in a case insensitive manner) for the string 'Josh' in the SA field in the database.  You only have to include enough of the SA's name to make it unique.
 
-Each calendar entry will run from sunset until 11pm (a somewhat arbitrary end time) and will include information in the notes on the twilight times, PI, observers, location, and account.  For example for K1 on 2017-07-30 the calendar entry notes are:
+Each calendar entry will run from sunset until 11pm (a somewhat arbitrary end time).  The title will show what instrument, whether it is regular support or on call, and the location of the observers.  For example, for K1 on 2017-07-30 the calendar entry title is: 'MOSFIRE Support (HQ)'.  The calendar entry notes will include information on the twilight times, PI, observers, location, and account.  For example, for K1 on 2017-07-30 the calendar entry notes are:
 
 ```
 Sunset @ 19:10
