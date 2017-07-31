@@ -22,7 +22,7 @@ The `--end 2018-01-31` option tells the program to look at the schedule from tod
 
 The `--sa Josh` option means that the program will search (in a case insensitive manner) for the string 'Josh' in the SA field in the database.  You only have to include enough of the SA's name to make it unique.
 
-Each calendar entry will run from sunset until 11pm (a somewhat arbitrary end time).  The title will show what instrument, whether it is regular support or on call, and the location of the observers.  For example, for K1 on 2017-07-30 the calendar entry title is: 'MOSFIRE Support (HQ)'.  The calendar entry notes will include information on the twilight times, PI, observers, location, and account.  For example, for K1 on 2017-07-30 the calendar entry notes are:
+Each calendar entry will run from sunset until 11pm (a somewhat arbitrary end time).  The title will show what instrument, whether it is regular support or on call, and the location of the observers.  For example, for K1 on 2017-07-30 the calendar entry title is: `MOSFIRE Support (HQ)`.  The calendar entry notes will include information on the twilight times, PI, observers, location, and account.  For example, for K1 on 2017-07-30 the calendar entry notes are:
 
 ```
 Sunset @ 19:10
@@ -48,3 +48,5 @@ Account: MOSFIRE(4)
     
 
 ## KeckStarList.py
+
+Some minor utilities for reading star lists.
