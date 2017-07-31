@@ -143,7 +143,7 @@ def parse_twilight(entry):
 ##-------------------------------------------------------------------------
 ## Check On Call
 ##-------------------------------------------------------------------------
-def check_on_call(entry, telsched, args):
+def determine_type(entry, telsched, args):
     '''
     Given an entry (a single row of a telsched table), check to see if the
     previous night on the same telescope has the same PI string.  If so, the
@@ -166,6 +166,11 @@ def check_on_call(entry, telsched, args):
     else:
         print('Multiple entries for yesterday')
         type = 'Support'
+
+    split = entry['Principal'].split('/')
+    if len(split) > 1:
+        type = f"{type}, Split Night ({len(split)}x)"
+
     return type
 
 
@@ -213,11 +218,12 @@ def main():
         found = re.search(args.sa.lower(), entry['SA'].lower())
         if found:
             night_count += 1
-            type = check_on_call(entry, telsched, args)
+            type = determine_type(entry, telsched, args)
             title = '{} {} ({})'.format(entry['Instrument'], type, entry['Location'])
             twilight = parse_twilight(entry)
             calend = '{}T{}'.format(entry['Date'].replace('-', ''), '230000')
-            description = [f"Sunset @ {twilight['sunsetstr']}",
+            description = [title,
+                           f"Sunset @ {twilight['sunsetstr']}",
                            f"12 deg Twilight @ {twilight['dusk_12degstr']}",
                            f"12 deg Twilight @ {twilight['dawn_12degstr']}",
                            f"Sunrise @ {twilight['sunrisestr']}",
