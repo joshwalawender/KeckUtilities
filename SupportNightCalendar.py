@@ -76,18 +76,28 @@ class ICSFile(object):
 ##-------------------------------------------------------------------------
 ## Get Telescope Schedule
 ##-------------------------------------------------------------------------
-def get_telsched(from_date=None, ndays=10):
+def get_telsched(from_date=None, ndays=None):
+    # Set from date
     if from_date is None:
         now = dt.now()
-        from_date = now.strftime('%y-%m-%d')
+        from_date = now.strftime('%Y-%m-%d')
     else:
-        assert dt.strptime(from_date, '%y-%m-%d')
-
-    from_dto = dt.strptime(from_date, '%y-%m-%d')
+        assert dt.strptime(from_date, '%Y-%m-%d')
+    from_dto = dt.strptime(from_date, '%Y-%m-%d')
     from_string = from_dto.strftime('%Y-%m-%d HST')
-    to_dto = from_dto + tdelta(ndays)
+    # Set to date
+    if ndays is None:
+        if from_dto.month == 1:
+            to_dto = dt(from_dto.year, 2, 1)
+        elif from_dto.month < 7:
+            to_dto = dt(from_dto.year, 8, 1)
+        elif from_dto.month < 12:
+            to_dto = dt(from_dto.year+1, 2, 1)
+    else:
+        to_dto = from_dto + tdelta(ndays)
     to_string = to_dto.strftime('%Y-%m-%d HST')
-    print(f'Getting telescope schedule from {from_string} to {to_string}')
+    ndays = (to_dto - from_dto).days + 1
+    print(f'Getting telescope schedule from {from_string} to {to_string} ({ndays} days)')
 
     address = f'http://www/observing/schedule/ws/telsched.php'\
               f'?date={from_date}&ndays={ndays:d}&field=all&verbosity=-1'
@@ -188,26 +198,58 @@ def main():
     parser.add_argument('-s', '--sa',
         type=str, dest="sa", default='Josh',
         help="SA name. Use enough of the name to make a case insenstive string search unique.")
+    parser.add_argument('--sem', '--semester',
+        type=str, dest="semester",
+        help="Semester")
+    parser.add_argument('-b', '--begin',
+        type=str, dest="begin",
+        help="Start date in %Y-%m-%d format.")
     parser.add_argument('-e', '--end',
         type=str, dest="end",
-        help="End date in %Y-%m-%d format or S17B format.")
+        help="End date in %Y-%m-%d format.")
     args = parser.parse_args()
+
+    ## Set start date
+    if args.begin is not None:
+        try:
+            from_dto = dt.strptime(args.begin, '%Y-%m-%d')
+        except:
+            from_dto = dt.now()
+    else:
+        from_dto = dt.now()
     ## Determine ndays from args.end
-    if args.end:
+    if args.end is not None:
         try:
             end_dto = dt.strptime(args.end, '%Y-%m-%d')
         except:
             pass
         else:
-            today = dt.strptime(dt.now().strftime('%Y-%m-%d'), '%Y-%m-%d')
-            delta = end_dto - today
+            delta = end_dto - from_dto
             ndays = delta.days
     else:
-        ndays = 180
+        ndays = None
+    ## If semester is set, use that for start and end dates
+    if args.semester is not None:
+        try:
+            matched = re.match('S(\d\d)([AB])', args.semester)
+            if matched is not None:
+                year = int(f"20{matched.group(1)}")
+                if matched.group(2) == 'A':
+                    from_dto = dt(year, 2, 1)
+                    end_dto = dt(year, 7, 31)
+                else:
+                    from_dto = dt(year, 8, 1)
+                    end_dto = dt(year+1, 1, 31)
+                delta = end_dto - from_dto
+                ndays = delta.days
+        except:
+            pass
+
+    from_date = from_dto.strftime('%Y-%m-%d')
+    telsched = get_telsched(from_date=from_date, ndays=ndays)
+    ndays = int(len(telsched)/2)
 
 
-    telsched = get_telsched(ndays=ndays)
-    
     ##-------------------------------------------------------------------------
     ## Create Output iCal File
     ##-------------------------------------------------------------------------
@@ -236,7 +278,7 @@ def main():
             ical_file.add_event(title, twilight['sunset'].strftime('%Y%m%dT%H%M%S'),
                                 calend, description)
     ical_file.write()
-    print(f"Found {night_count:d} nights where SA matches {args.sa:}")
+    print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
 
 
 if __name__ == '__main__':
