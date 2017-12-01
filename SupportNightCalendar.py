@@ -231,7 +231,7 @@ def main():
     ## If semester is set, use that for start and end dates
     if args.semester is not None:
         try:
-            matched = re.match('S(\d\d)([AB])', args.semester)
+            matched = re.match('S?(\d\d)([AB])', args.semester)
             if matched is not None:
                 year = int(f"20{matched.group(1)}")
                 if matched.group(2) == 'A':
