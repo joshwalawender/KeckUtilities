@@ -53,7 +53,7 @@ def main():
     ## Check where this is being run
     ##-------------------------------------------------------------------------
     if gethostname() == 'Joshs-MBP.local':
-        inKeck = True
+        inKeck = False
     else:
         inKeck = False
 
