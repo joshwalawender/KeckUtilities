@@ -91,7 +91,7 @@ def get_telsched(from_date=None, ndays=None):
             to_dto = dt(from_dto.year, 2, 1)
         elif from_dto.month < 7:
             to_dto = dt(from_dto.year, 8, 1)
-        elif from_dto.month < 12:
+        elif from_dto.month <= 12:
             to_dto = dt(from_dto.year+1, 2, 1)
     else:
         to_dto = from_dto + tdelta(ndays)
