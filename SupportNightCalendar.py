@@ -203,10 +203,10 @@ def main():
         help="Semester")
     parser.add_argument('-b', '--begin',
         type=str, dest="begin",
-        help="Start date in %Y-%m-%d format.")
+        help="Start date in Y-m-d format.")
     parser.add_argument('-e', '--end',
         type=str, dest="end",
-        help="End date in %Y-%m-%d format.")
+        help="End date in Y-m-d format.")
     args = parser.parse_args()
 
     ## Set start date
