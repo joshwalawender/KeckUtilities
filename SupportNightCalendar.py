@@ -225,7 +225,7 @@ def main():
             pass
         else:
             delta = end_dto - from_dto
-            ndays = delta.days
+            ndays = delta.days + 1
     else:
         ndays = None
     ## If semester is set, use that for start and end dates
@@ -241,7 +241,7 @@ def main():
                     from_dto = dt(year, 8, 1)
                     end_dto = dt(year+1, 1, 31)
                 delta = end_dto - from_dto
-                ndays = delta.days
+                ndays = delta.days + 1
         except:
             pass
 
