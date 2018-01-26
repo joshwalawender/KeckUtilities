@@ -46,7 +46,10 @@ log = logging.getLogger('MyLogger')
 log.setLevel(logging.DEBUG)
 ## Set up console output
 LogConsoleHandler = logging.StreamHandler()
-LogConsoleHandler.setLevel(logging.DEBUG)
+if args.verbose is True:
+    LogConsoleHandler.setLevel(logging.DEBUG)
+else:
+    LogConsoleHandler.setLevel(logging.INFO)
 LogFormat = logging.Formatter('%(asctime)s %(levelname)8s: %(message)s',
                               datefmt='%Y-%m-%d %H:%M:%S')
 LogConsoleHandler.setFormatter(LogFormat)
@@ -63,7 +66,7 @@ log.addHandler(LogConsoleHandler)
 ## Main Program
 ##-------------------------------------------------------------------------
 def main(name, fromdate, todate, obscode=568, spacing='15m'):
-    log.info(f'Querying horizons for: "{name}"')
+    log.debug(f'Querying horizons for: "{name}"')
     target = callhorizons.query(name)
     fromstr = fromdate.strftime('%Y-%m-%d %H:%M')
     tostr = todate.strftime('%Y-%m-%d %H:%M')
@@ -71,8 +74,14 @@ def main(name, fromdate, todate, obscode=568, spacing='15m'):
     log.debug(f'  To:   "{tostr}"')
     log.debug(f'  Increment: "{spacing}"')
     target.set_epochrange(fromstr, tostr, spacing)
-    target.get_ephemerides(obscode)
+    try:
+        target.get_ephemerides(obscode)
+    except ValueError as e:
+        log.error("Failed to get ephemerides")
+        print(e.args[0])
     tab = Table(target.data)
+    if len(tab) == 0:
+        log.error("ephemerides have zero length")
 
     for entry in tab:
         time = (entry['datetime'].split(' ')[1]).replace(':', '')
@@ -83,8 +92,8 @@ def main(name, fromdate, todate, obscode=568, spacing='15m'):
         coord = SkyCoord(entry['RA'], entry['DEC'], frame='fk5', unit=(u.hourangle, u.deg))
         line.append(f'{coord.to_string("hmsdms", sep=":", precision=2)}')
         line.append(f'{coord.equinox.jyear:.2f}')
-        line.append(f'dra={float(entry["RA_rate"])/15:.3f}')
-        line.append(f'ddec={float(entry["DEC_rate"]):.3f}')
+        line.append(f'dra={float(entry["RA_rate"])/15*3600:.3f}')
+        line.append(f'ddec={float(entry["DEC_rate"])*3600:.3f}')
         line.append(f'vmag={float(entry["V"]):.2f}')
         line.append(f'# airmass={float(entry["airmass"]):.2f}')
         print(' '.join(line))
