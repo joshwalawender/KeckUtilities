@@ -6,9 +6,11 @@ import os
 import argparse
 import logging
 from datetime import datetime as dt
+from datetime import timedelta as tdelta
 
 import callhorizons
 
+import numpy as np
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
@@ -32,12 +34,23 @@ p.add_argument('name', type=str,
                help="The name of the target compatible with JPL horizons")
 args = p.parse_args()
 
-try:
-    fromdate = dt.strptime(args.fromdate, '%Y-%m-%dT%H:%M:%S')
-    todate = dt.strptime(args.todate, '%Y-%m-%dT%H:%M:%S')
-except:
-    print('Could not parse dates')
-    raise
+if args.fromdate is None:
+    fromdate = dt.utcnow()
+else:
+    try:
+        fromdate = dt.strptime(args.fromdate, '%Y-%m-%dT%H:%M:%S')
+    except:
+        print('Could not parse from date')
+        raise
+
+if args.todate is None:
+    todate = dt.utcnow() + tdelta(1, 0)
+else:
+    try:
+        todate = dt.strptime(args.todate, '%Y-%m-%dT%H:%M:%S')
+    except:
+        print('Could not parse to date')
+        raise
 
 ##-------------------------------------------------------------------------
 ## Create logger object
@@ -65,7 +78,7 @@ log.addHandler(LogConsoleHandler)
 ##-------------------------------------------------------------------------
 ## Main Program
 ##-------------------------------------------------------------------------
-def main(name, fromdate, todate, obscode=568, spacing='15m'):
+def main(name, fromdate, todate, obscode=568, spacing='1h'):
     log.debug(f'Querying horizons for: "{name}"')
     target = callhorizons.query(name)
     fromstr = fromdate.strftime('%Y-%m-%d %H:%M')
@@ -83,20 +96,27 @@ def main(name, fromdate, todate, obscode=568, spacing='15m'):
     if len(tab) == 0:
         log.error("ephemerides have zero length")
 
+    name = name.replace("/", "")
+    name = name.replace(" ", "_")
+
+    wasup = True
     for entry in tab:
         time = (entry['datetime'].split(' ')[1]).replace(':', '')
-        name = name.replace("/", "")
-        name = name.replace(" ", "_")
         starlistname = f'{name[0:9]:s}_{time:s}'
-        line = [f'{starlistname:15s}']
-        coord = SkyCoord(entry['RA'], entry['DEC'], frame='fk5', unit=(u.hourangle, u.deg))
-        line.append(f'{coord.to_string("hmsdms", sep=":", precision=2)}')
-        line.append(f'{coord.equinox.jyear:.2f}')
-        line.append(f'dra={float(entry["RA_rate"])/15*3600:.3f}')
-        line.append(f'ddec={float(entry["DEC_rate"])*3600:.3f}')
-        line.append(f'vmag={float(entry["V"]):.2f}')
-        line.append(f'# airmass={float(entry["airmass"]):.2f}')
-        print(' '.join(line))
+        if np.isnan(float(entry['airmass'])) == True:
+            if wasup == True:
+                print(f"# Target {name} is down at {time}")
+                wasup = False
+        else:
+            line = [f'{starlistname:15s}']
+            coord = SkyCoord(entry['RA'], entry['DEC'], frame='fk5', unit=(u.hourangle, u.deg))
+            line.append(f'{coord.to_string("hmsdms", sep=":", precision=2)}')
+            line.append(f'{coord.equinox.jyear:.2f}')
+            line.append(f'dra={float(entry["RA_rate"])/15*3600:.3f}')
+            line.append(f'ddec={float(entry["DEC_rate"])*3600:.3f}')
+            line.append(f'vmag={float(entry["V"]):.2f}')
+            line.append(f'# airmass={float(entry["airmass"]):.2f}')
+            print(' '.join(line))
 
 
 if __name__ == '__main__':
