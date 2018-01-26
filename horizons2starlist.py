@@ -112,8 +112,8 @@ def main(name, fromdate, todate, obscode=568, spacing='1h'):
                 wasup = False
         else:
             line = [f'{starlistname:15s}']
-            coord = SkyCoord(entry['RA'], entry['DEC'], frame='fk5', unit=(u.hourangle, u.deg))
-            line.append(f'{coord.to_string("hmsdms", sep=":", precision=2)}')
+            coord = SkyCoord(entry['RA'], entry['DEC'], frame='fk5', unit=(u.deg, u.deg))
+            line.append(f'{coord.to_string("hmsdms", sep=" ", precision=2)}')
             line.append(f'{coord.equinox.jyear:.2f}')
             line.append(f'dra={float(entry["RA_rate"])/15*3600:.3f}')
             line.append(f'ddec={float(entry["DEC_rate"])*3600:.3f}')
@@ -123,4 +123,4 @@ def main(name, fromdate, todate, obscode=568, spacing='1h'):
 
 
 if __name__ == '__main__':
-    main(args.name, fromdate, todate)
+    main(args.name, fromdate, todate, spacing=args.spacing)
