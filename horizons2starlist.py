@@ -29,6 +29,9 @@ p.add_argument("-f", "--from", dest="fromdate",
     help="From date for the starlist table (in ISO format)")
 p.add_argument("-t", "--to", dest="todate",
     help="To date for the starlist table (in ISO format)")
+p.add_argument("-s", "--spacing", dest="spacing",
+    default="1h",
+    help="The spacing for each starlist entry (e.g. 1h or 15m)")
 ## add arguments
 p.add_argument('name', type=str,
                help="The name of the target compatible with JPL horizons")
