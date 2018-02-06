@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 
 from astropy.table import Table
 
+from gooey import Gooey, GooeyParser
+
 class ParseError(Exception):
     def __init__(self, value):
         self.value = value
@@ -187,6 +189,7 @@ def determine_type(entry, telsched, args):
 ##-------------------------------------------------------------------------
 ## Main Program
 ##-------------------------------------------------------------------------
+@Gooey
 def main():
     ##-------------------------------------------------------------------------
     ## Parse Command Line Arguments
