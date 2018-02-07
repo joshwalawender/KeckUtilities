@@ -13,16 +13,16 @@ git clone https://github.com/joshwalawender/KeckUtilities.git
 
 Then `cd` in to the resulting `KeckUtilities` directory and run:
 ```
-python SupportNightCalendar.py --end 2018-01-31 --sa Josh
+python SupportNightCalendar.py
 ```
 
-The program will generate a `Nights.ics` file in that directory which can then be imported by typical calendar applications.
+If your system is a conda build or if it complains: "This program needs access to the screen" then you can either run in command line mode using the `--ignore-gooey` option or you can run it using:
 
-The `--end 2018-01-31` option tells the program to look at the schedule from today until that end date (the end of S17B in this example) and generate calendar entries for that time period.
+`pythonw SupportNightCalendar.py`
 
-The `--sa Josh` option means that the program will search (in a case insensitive manner) for the string 'Josh' in the SA field in the database.  You only have to include enough of the SA's name to make it unique.
+which you can install via `conda install python.app` if you have conda.
 
-Each calendar entry will run from sunset until 11pm (a somewhat arbitrary end time).  The title will show what instrument, whether it is regular support or on call, and the location of the observers.  For example, for K1 on 2017-07-30 the calendar entry title is: `MOSFIRE Support (HQ)`.  The calendar entry notes will include information on the twilight times, PI, observers, location, and account.  For example, for K1 on 2017-07-30 the calendar entry notes are:
+The program will generate a `Nights.ics` file in that directory which can then be imported by typical calendar applications.  Each calendar entry will run from sunset until 11pm (a somewhat arbitrary end time).  The title will show what instrument, whether it is regular support or on call, and the location of the observers.  For example, for K1 on 2017-07-30 the calendar entry title is: `MOSFIRE Support (HQ)`.  The calendar entry notes will include information on the twilight times, PI, observers, location, and account.  For example, for K1 on 2017-07-30 the calendar entry notes are:
 
 ```
 Sunset @ 19:10
@@ -35,17 +35,28 @@ Location: HQ
 Account: MOSFIRE(4)
 ```
 
+### Options
+
+`--sa Josh`: Means that the program will search (in a case insensitive manner) for the string 'Josh' in the SA field in the database.  You only have to include enough of the SA's name to make it unique.
+
+`--semester 18A` or `--sem 18A`: Tells the program to look at the specified semester.  This overrides the `--start` and `--end` options below.
+
+`--begin 2018-01-01`: Tells the program to look at the schedule from the date indicated until the end of that semester (ending on  the next instance of Jan 31 or July 31).  Defaults to today.
+
+`--end 2018-01-31`: Tells the program to look at the schedule until that end date (the end of S17B in this example) and generate calendar entries for that time period.
+
 ### Example ICS Entry
 
-    BEGIN:VEVENT
-    UID:20160803T215325Z-0011@kecksupportcalendar.com
-    DTSTAMP:20160803T215325Z
-    DTSTART;TZID=Pacific/Honolulu:20160806T140000
-    DTEND;TZID=Pacific/Honolulu:20160806T230000
-    SUMMARY:HIRESr Support
-    DESCRIPTION: PI: Matsuno\nObservers: Matsuno, Aoki\nLocation: HQ
-    END:VEVENT
-    
+```
+BEGIN:VEVENT
+UID:20160803T215325Z-0011@kecksupportcalendar.com
+DTSTAMP:20160803T215325Z
+DTSTART;TZID=Pacific/Honolulu:20160806T140000
+DTEND;TZID=Pacific/Honolulu:20160806T230000
+SUMMARY:HIRESr Support
+DESCRIPTION: PI: Matsuno\nObservers: Matsuno, Aoki\nLocation: HQ
+END:VEVENT
+```
 
 ## horizons2starlist.py
 
