@@ -195,22 +195,24 @@ def main():
     ## Parse Command Line Arguments
     ##-------------------------------------------------------------------------
     ## create a parser object for understanding command-line arguments
-    parser = argparse.ArgumentParser(
-             description="Program description.")
+    parser = GooeyParser(
+             description="Generates ICS file of support nights from telescope DB.")
     ## add arguments
     parser.add_argument('-s', '--sa',
         type=str, dest="sa", default='Josh',
-        help="SA name. Use enough of the name to make a case insenstive string search unique.")
+        help="SA name. Use enough to make a search unique.")
     parser.add_argument('--sem', '--semester',
         type=str, dest="semester",
-        help="Semester")
+        help="Semester (e.g. '18B')")
     parser.add_argument('-b', '--begin',
-        type=str, dest="begin",
-        help="Start date in Y-m-d format.")
+        type=str, dest="begin", #widget='DateChooser',
+        help="Start date in YYYY-mm-dd format.")
     parser.add_argument('-e', '--end',
-        type=str, dest="end",
-        help="End date in Y-m-d format.")
+        type=str, dest="end", #widget='DateChooser',
+        help="End date in YYYY-mm-dd format.")
     args = parser.parse_args()
+
+    print(args.begin)
 
     ## Set start date
     if args.begin is not None:
