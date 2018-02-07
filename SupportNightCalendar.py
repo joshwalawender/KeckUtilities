@@ -212,8 +212,6 @@ def main():
         help="End date in YYYY-mm-dd format.")
     args = parser.parse_args()
 
-    print(args.begin)
-
     ## Set start date
     if args.begin is not None:
         try:
