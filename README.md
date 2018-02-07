@@ -11,16 +11,27 @@ To use, clone this repository to your machine:
 git clone https://github.com/joshwalawender/KeckUtilities.git
 ```
 
-Then `cd` in to the resulting `KeckUtilities` directory and run:
+You can run the program in either command line mode or GUI mode.
+
+### Command Line Mode
+
+From the resulting `KeckUtilities` directory, run:
+
 ```
-python SupportNightCalendar.py
+python SupportNightCalendar.py --ignore-gooey
 ```
 
-If your system is a conda build or if it complains: "This program needs access to the screen" then you can either run in command line mode using the `--ignore-gooey` option or you can run it using:
+### GUI Mode
+
+To run as a GUI, you will need the (Gooey)[https://github.com/chriskiehl/Gooey] python module.  Install it with either `pip install Gooey` or by cloning that repository and running the usual `python setup.py install`.
+
+If your system complains: "This program needs access to the screen" then you can either run in command line mode using the `--ignore-gooey` option or you can run it using:
 
 `pythonw SupportNightCalendar.py`
 
 which you can install via `conda install python.app` if you have conda.
+
+### Program Output
 
 The program will generate a `Nights.ics` file in that directory which can then be imported by typical calendar applications.  Each calendar entry will run from sunset until 11pm (a somewhat arbitrary end time).  The title will show what instrument, whether it is regular support or on call, and the location of the observers.  For example, for K1 on 2017-07-30 the calendar entry title is: `MOSFIRE Support (HQ)`.  The calendar entry notes will include information on the twilight times, PI, observers, location, and account.  For example, for K1 on 2017-07-30 the calendar entry notes are:
 
