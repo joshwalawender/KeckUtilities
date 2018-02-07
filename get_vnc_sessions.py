@@ -11,17 +11,20 @@ from astropy.table import Table
 from socket import gethostname
 from subprocess import Popen
 
+from gooey import Gooey, GooeyParser
+
 ##-------------------------------------------------------------------------
 ## Main Program
 ##-------------------------------------------------------------------------
+@Gooey
 def main():
 
     ##-------------------------------------------------------------------------
     ## Parse Command Line Arguments
     ##-------------------------------------------------------------------------
     ## create a parser object for understanding command-line arguments
-    parser = argparse.ArgumentParser(
-             description="Program description.")
+    parser = GooeyParser(
+             description="Get VNC sessions.")
     ## add flags
     parser.add_argument("-v", "--verbose",
         action="store_true", dest="verbose",
@@ -29,7 +32,7 @@ def main():
     ## add arguments
     parser.add_argument("account", type=str,
         help="The user account.")
-    parser.add_argument("password", type=str,
+    parser.add_argument("password", type=str, widget='PasswordField',
         help="The account password.")
     args = parser.parse_args()
 
