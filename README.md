@@ -23,7 +23,7 @@ python SupportNightCalendar.py --ignore-gooey
 
 ### GUI Mode
 
-To run as a GUI, you will need the (Gooey)[https://github.com/chriskiehl/Gooey] python module.  Install it with either `pip install Gooey` or by cloning that repository and running the usual `python setup.py install`.
+To run as a GUI, you will need the [Gooey](https://github.com/chriskiehl/Gooey) python module.  Install it with either `pip install Gooey` or by cloning that repository and running the usual `python setup.py install`.
 
 If your system complains: "This program needs access to the screen" then you can either run in command line mode using the `--ignore-gooey` option or you can run it using:
 
@@ -73,7 +73,7 @@ END:VEVENT
 
 A python script to query an object name and return a Keck formatted starlist for a range of dates with the appropriate tracking rate corrections.
 
-This script requires the (callhorizons)[https://github.com/mommermi/callhorizons] package which can be obtained from GitHub at that link or installed via `pip install callhorizons`.
+This script requires the [callhorizons](https://github.com/mommermi/callhorizons) package which can be obtained from GitHub at that link or installed via `pip install callhorizons`.
 
 Once `callhorizons` is installed, you can get starlist entries for an objecy (e.g. for "C/2016 R2") by invoking:
 
