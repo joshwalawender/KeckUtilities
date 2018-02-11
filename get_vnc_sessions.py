@@ -30,6 +30,10 @@ def main():
         action="store_true", dest="verbose",
         default=False, help="Be verbose! (default = False)")
     ## add arguments
+    parser.add_argument("instrument", type=str,# widget='DropDown',
+        choices=["HIRES", "LRIS", "MOSFIRE", "OSIRIS", "DEIMOS", "ESI", "KCWI",
+                 "NIRES", "NIRSPEC", "NIRC2"],
+        help="The instrument.")
     parser.add_argument("account", type=str,
         help="The user account.")
     parser.add_argument("password", type=str, widget='PasswordField',
@@ -64,79 +68,74 @@ def main():
     ##-------------------------------------------------------------------------
     ## Determine account
     ##-------------------------------------------------------------------------
-    account = args.account
-    telescope = {'hires': 1,
-                 'lris': 1,
-                 'mosfire': 1,
-                 'osiris' : 1,
-                 'esi': 2,
-                 'kcwi': 2,
-                 'nirspec': 2,
-                 'nirc': 2,
-                 'nires': 2,
-                 'deimos': 2,
+    vncServer = {"HIRES": 'svncserver1',
+                 "LRIS": 'svncserver1',
+                 "MOSFIRE": 'svncserver1',
+                 "OSIRIS": 'svncserver1',
+                 "DEIMOS": 'svncserver2',
+                 "ESI": 'svncserver1',
+                 "KCWI": 'vm-kcwi',
+                 "NIRES": 'vm-nires',
+                 "NIRSPEC": 'svncserver2',
+                 "NIRC2": 'svncserver2'}
+    telescope = {'HIRES': 1,
+                 'LRIS': 1,
+                 'MOSFIRE': 1,
+                 'OSIRIS' : 1,
+                 'DEIMOS': 2,
+                 'ESI': 2,
+                 'KCWI': 2,
+                 'NIRES': 2,
+                 'NIRSPEC': 2,
+                 'NIRC2': 2,
                  }
-    iseng = re.match('([a-z]+)eng', account.lower())
-    isnumbered = re.match('([a-z]+)(\d*)', account.lower())
-    if iseng:
-        instrument = iseng.group(1)
-        number = 'eng'
-    elif isnumbered:
-        instrument = isnumbered.group(1)
-        number = int(isnumbered.group(2))
-    else:
-        print(f"Could not parse account name: '{account}'")
-        sys.exit(0)
-    if instrument in ['mos', 'moseng']:
-        instrument = 'mosfire'
 
-    log.debug(f'Account: {account}')
-    log.debug(f'Instrument: {instrument}')
-    log.debug(f'Number: {number}')
+    log.debug(f'Account: {args.account}')
+    log.debug(f'Instrument: {args.instrument}')
 
 
     ##-------------------------------------------------------------------------
     ## Print my unix session and k1/2status
     ##-------------------------------------------------------------------------
-    if inKeck:
-        print("open vnc://xserver1:5932")
-    else:
-        displayname = "jwalawender@xserver1"
-        hostname = "xserver1.keck.hawaii.edu"
-        outs = [f"# {displayname:<9s}:",
-                f"/usr/bin/ssh jwalawender@{hostname} -L 5932:{hostname}:5932 -N",
-                f"open vnc://localhost:5932",
-                f""]
-        for line in outs:
-            print(line)
-
-    if inKeck:
-        print(f"open vnc://svncserver{telescope[instrument]:d}:5901")
-    else:
-        displayname = f"k{telescope[instrument]}-status"
-        hostname = f"svncserver{telescope[instrument]:d}.keck.hawaii.edu"
-        outs = [f"# {displayname:<9s}:",
-                f"/usr/bin/ssh {account}@{hostname} -L 5901:{hostname}:5901 -N",
-                f"open vnc://localhost:5901",
-                f""]
-        for line in outs:
-            print(line)
+#     if inKeck:
+#         print("open vnc://xserver1:5932")
+#     else:
+#         displayname = "jwalawender@xserver1"
+#         hostname = "xserver1.keck.hawaii.edu"
+#         outs = [f"# {displayname:<9s}:",
+#                 f"/usr/bin/ssh jwalawender@{hostname} -L 5932:{hostname}:5932 -N",
+#                 f"open vnc://localhost:5932",
+#                 f""]
+#         for line in outs:
+#             print(line)
+# 
+#     if inKeck:
+#         print(f"open vnc://svncserver{telescope[instrument]:d}:5901")
+#     else:
+#         displayname = f"k{telescope[instrument]}-status"
+#         hostname = f"svncserver{telescope[instrument]:d}.keck.hawaii.edu"
+#         outs = [f"# {displayname:<9s}:",
+#                 f"/usr/bin/ssh {account}@{hostname} -L 5901:{hostname}:5901 -N",
+#                 f"open vnc://localhost:5901",
+#                 f""]
+#         for line in outs:
+#             print(line)
 
 
     ##-------------------------------------------------------------------------
     ## Get Instrument Sessions
     ##-------------------------------------------------------------------------
 
-    hostname = f"svncserver{telescope[instrument]}.keck.hawaii.edu"
+    hostname = f"{vncServer[args.instrument]}.keck.hawaii.edu"
     port = 22
     command = 'kvncstatus'
-    log.debug(f'Running {command} on {hostname} as {account}')
+    log.debug(f'Running {command} on {hostname} as {args.account}')
 
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.WarningPolicy())
-        client.connect(hostname, port=port, username=account, password=args.password)
+        client.connect(hostname, port=port, username=args.account, password=args.password)
         stdin, stdout, stderr = client.exec_command(command)
         rawoutput = stdout.read()
         output = rawoutput.decode()
@@ -144,24 +143,26 @@ def main():
         client.close()
 
     if output == 'No VNC servers found.\n':
-        print(f"No VNC servers found for {account}")
+        print(f"No VNC servers found for {args.account}")
         sys.exit(0)
 
     tab = Table.read(output, format='ascii')
-    sessions = tab[tab['User'] == account]
+    sessions = tab[tab['User'] == args.account]
+
     for session in sessions:
         matchname = re.match('(\w+)-(\w+)-(\w+)', session['Desktop'])
         displayaccount = matchname.group(2)
         displayname = matchname.group(3)
 
+
         if inKeck:
             print(f"# {displayname:<9s}")
-            print(f"open vnc://svncserver{telescope[instrument]:d}:59{session['Display'][1:]}")
+            print(f"open vnc://{hostname}:59{session['Display'][1:]}")
             if displayname[:7] == 'control':
-                Popen(["open", f"vnc://svncserver{telescope[instrument]:d}:59{session['Display'][1:]}"])
+                Popen(["open", f"vnc://{hostname}:59{session['Display'][1:]}"])
         else:
             outs = [f"# {displayname:<9s}:",
-                    f"/usr/bin/ssh {account}@{hostname} -L "+\
+                    f"/usr/bin/ssh {args.account}@{hostname} -L "+\
                     f"59{session['Display'][1:]}:{hostname}:59{session['Display'][1:]} -N",
                     f"open vnc://localhost:59{session['Display'][1:]}",
                     f""]
