@@ -6,12 +6,15 @@ import os
 import argparse
 import logging
 
+from matplotlib import pyplot as plt
+
 from scipy import ndimage
 
 import numpy as np
 from astropy.io import fits
 from astropy import units as u
 from astropy.modeling import models, fitting, Fittable2DModel, Parameter
+from astropy.table import Table
 from ccdproc import CCDData, combine, Combiner, flat_correct, trim_image
 
 ##-------------------------------------------------------------------------
@@ -103,7 +106,48 @@ class mosfireAlignmentBox(Fittable2DModel):
 
 
 ##-------------------------------------------------------------------------
-## Fit CSU Edges
+## Transformations (copied from CSU initializer code)
+##-------------------------------------------------------------------------
+def pad(x):
+    '''Pad array for affine transformation.
+    '''
+    return np.hstack([x, np.ones((x.shape[0], 1))])
+
+
+def unpad(x):
+    '''Unpad array for affine transformation.
+    '''
+    return x[:,:-1]
+
+
+def pixel_to_physical(x):
+    '''Using the affine transformation determined by `fit_transforms`,
+    convert a set of pixel coordinates (X, Y) to physical coordinates (mm,
+    slit).
+    '''
+    Apixel_to_physical = [[ -1.30490576e-01,  8.06611058e-05, 0.00000000e+00],
+                          [ -4.19125389e-04, -2.25757176e-02, 0.00000000e+00],
+                          [  2.73934450e+02,  4.66399772e+01, 1.00000000e+00]]
+    x = np.array(x)
+    result = unpad(np.dot(pad(x), Apixel_to_physical))
+    return result
+
+
+def physical_to_pixel(x):
+    '''Using the affine transformation determined by `fit_transforms`,
+    convert a set of physical coordinates (mm, slit) to pixel coordinates
+    (X, Y).
+    '''
+    Aphysical_to_pixel = [[ -7.66328913e+00, -2.73804045e-02, 0.00000000e+00],
+                          [  1.42268848e-01, -4.42948641e+01, 0.00000000e+00],
+                          [  2.09260502e+03,  2.07341206e+03, 1.00000000e+00]]
+    x = np.array(x)
+    result = unpad(np.dot(pad(x), Aphysical_to_pixel))
+    return result
+
+
+##-------------------------------------------------------------------------
+## Fit CSU Edges (copied from CSU initializer code)
 ##-------------------------------------------------------------------------
 def fit_CSU_edges(profile):
     fitter = fitting.LevMarLSQFitter()
@@ -184,7 +228,7 @@ def reduce_image(imagefile, darkfile = 'm180130_0001.fits',
 ##-------------------------------------------------------------------------
 ## Main Program
 ##-------------------------------------------------------------------------
-def fit_alignment_box(im, boxat=[821, 1585], box_size=30):
+def fit_alignment_box(im, boxat=[821, 1585], box_size=30, plot=False):
     
     fits_section = f'[{boxat[0]-box_size:d}:{boxat[0]+box_size:d}, {boxat[1]-box_size:d}:{boxat[1]+box_size:d}]'
     region = trim_image(im, fits_section=fits_section)
@@ -217,7 +261,7 @@ def fit_alignment_box(im, boxat=[821, 1585], box_size=30):
     box.x_width.min = 10
     box.y_width.min = 10
     
-    star = models.Gaussian2D(star_amplitude, starloc[0], starloc[1])
+    star = models.Gaussian2D(star_amplitude, starloc[1], starloc[0])
     star.amplitude.min = 0
     star.x_stddev.min = 1
     star.x_stddev.max = 8
@@ -248,7 +292,6 @@ def fit_alignment_box(im, boxat=[821, 1585], box_size=30):
     starpos_x = boxat[1] - box_size + fit.x_mean_2.value
     starpos_y = boxat[0] - box_size + fit.y_mean_2.value
 
-
     print(f"Sky Brightness = {fit.amplitude_1.value:.0f} ADU")
     print(f"Box X Center = {boxpos_x:.0f}")
     print(f"Box Y Center = {boxpos_y:.0f}")
@@ -258,10 +301,37 @@ def fit_alignment_box(im, boxat=[821, 1585], box_size=30):
     print(f"Stellar Amplitude = {fit.amplitude_2.value:.0f} ADU")
     print(f"Stellar Flux (fit) = {stellar_flux:.0f} ADU")
     
-    
+    if plot == True:
+        modelim = np.zeros((61,61))
+        fitim = np.zeros((61,61))
+        for i in range(0,60):
+            for j in range(0,60):
+                modelim[j,i] = model(i,j)
+                fitim[j,i] = fit(i,j)
+        resid = region.data-fitim
+        plt.figure(figsize=(16,24))
+        plt.subplot(1,4,1)
+        plt.imshow(region.data, vmin=fit.amplitude_1.value*0.9, vmax=fit.amplitude_1.value+fit.amplitude_2.value)
+        plt.subplot(1,4,2)
+        plt.imshow(modelim, vmin=fit.amplitude_1.value*0.9, vmax=fit.amplitude_1.value+fit.amplitude_2.value)
+        plt.subplot(1,4,3)
+        plt.imshow(fitim, vmin=fit.amplitude_1.value*0.9, vmax=fit.amplitude_1.value+fit.amplitude_2.value)
+        plt.subplot(1,4,4)
+        plt.imshow(resid, vmin=-1000, vmax=1000)
+        plt.show()
     
 if __name__ == '__main__':
-    im = reduce_image('m180210_0254.fits')
+    im = reduce_image('/Users/jwalawender/KeckData/MOSFIRE_FCS/m180210_0254.fits')
+
+    # Get info about alignment box positions
+    hdul = fits.open('/Users/jwalawender/KeckData/MOSFIRE_FCS/m180210_0254.fits')
+    slits = Table(hdul[3].data)
+    slits = slits.group_by('Target_Priority')
+    assert float(min(slits['Target_Priority'])) == -1.0
+    alignment_boxes = slits.groups[0]
+
+    
+
     boxes = [[1372, 1900],
              [821, 1585],
              [1542, 965],
@@ -269,4 +339,4 @@ if __name__ == '__main__':
              [1268, 302],
              ]
     for box in boxes:
-        fit_alignment_box(im, boxat=box)
+        fit_alignment_box(im, boxat=box, plot=True)
