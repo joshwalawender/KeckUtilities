@@ -55,7 +55,8 @@ def main():
     ##-------------------------------------------------------------------------
     ## Check where this is being run
     ##-------------------------------------------------------------------------
-    if gethostname() == 'Joshs-MBP.local':
+    hostname = gethostname()
+    if hostname.lower() in ['Joshs-MBP.local'.lower(), 'Joshs-MBP.keck.hawaii.edu'.lower()]:
         inKeck = True
     else:
         inKeck = False
