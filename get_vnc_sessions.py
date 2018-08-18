@@ -7,6 +7,9 @@ import argparse
 import logging
 import yaml
 import paramiko
+import subprocess
+from time import sleep
+from threading import Thread
 from telnetlib import Telnet
 from subprocess import Popen
 from astropy.table import Table, Column
@@ -22,8 +25,26 @@ def get_config(filename='keck_vnc_config.yaml'):
         config = yaml.load(FO)
 
     assert 'servers_to_try' in config.keys()
+    assert 'vncviewer' in config.keys()
 
     return config
+
+
+##-------------------------------------------------------------------------
+## Launch xterm
+##-------------------------------------------------------------------------
+def launch_xterm(command, pw, title):
+    cmd = ['xterm', '-hold', '-title', title, '-e', f'"{command}"']
+    xterm = subprocess.call(cmd)
+
+
+##-------------------------------------------------------------------------
+## Launch vncviewer
+##-------------------------------------------------------------------------
+def launch_vncviewer(port, pw=None):
+    config = get_config()
+    cmd = [config['vncviewer'], f'localhost:59{port:02d}']
+    vncviewer = subprocess.call(cmd)
 
 
 ##-------------------------------------------------------------------------
@@ -235,10 +256,23 @@ def main():
         print('No VNC sessions found')
         return
 
+    ssh_threads = []
+    vncviewer_threads = []
     for session in sessions:
         port = int(session['Display'][1:])
         sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L 59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
-        print(sshcmd)
+        print(f"Opening xterm for {session['Desktop']}")
+        ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"', args.password, session['Desktop'])))
+        ssh_threads[-1].start()
+
+    cont = input('Hit any key when password has been entered.')
+
+    for session in sessions:
+        port = int(session['Display'][1:])
+        vncviewer_threads.append(Thread(target=launch_vncviewer, args=(port,)))
+        vncviewer_threads[-1].start()
+
+
 
 
     ##-------------------------------------------------------------------------
