@@ -340,9 +340,9 @@ def main():
         statusport = [p for p in range(1,10,1) if p not in ports_in_use][0]
         sshcmd = f"ssh {args.account}@svncserver{tel}.keck.hawaii.edu -L "+\
                  f"5901:svncserver{tel}.keck.hawaii.edu:59{statusport:02d} -N"
-        log.info(f"Opening xterm for k{telescope}status")
+        log.info(f"Opening xterm for k{tel}status")
         ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
-                           args.password, f"k{telescope}status")))
+                           args.password, f"k{tel}status")))
         ssh_threads[-1].start()
 
     cont = input('Hit any key when password has been entered.')
