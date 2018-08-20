@@ -54,9 +54,10 @@ def launch_xterm(command, pw, title):
 ##-------------------------------------------------------------------------
 ## Launch vncviewer
 ##-------------------------------------------------------------------------
-def launch_vncviewer(port, pw=None):
+def launch_vncviewer(vncserver, port, pw=None):
     config = get_config()
-    cmd = [config['vncviewer'], f'localhost:59{port:02d}']
+    cmd = [config['vncviewer'], f'{vncserver}:59{port:02d}']
+    log.info(f"  {' '.join(cmd)}")
     vncviewer = subprocess.call(cmd)
 
 
@@ -80,9 +81,10 @@ def authenticate(authpass):
         tn.write('1\n'.encode('ascii'))
         result = tn.read_all().decode('ascii')
         if re.search('User authorized for standard services', result):
+            log.info(result)
             return True
         else:
-            log.info(result)
+            log.error(result)
             return None
 
 
@@ -103,9 +105,10 @@ def close_authentication(authpass):
         tn.write('2\n'.encode('ascii'))
         result = tn.read_all().decode('ascii')
         if re.search('User was signed off from all services', result):
+            log.info(result)
             return True
         else:
-            log.info(result)
+            log.error(result)
             return None
 
 
@@ -216,76 +219,7 @@ def determine_VNC_sessions(accountname, password, vncserver):
 ## Main Program
 ##-------------------------------------------------------------------------
 # @Gooey
-def main():
-
-    ##-------------------------------------------------------------------------
-    ## Parse Command Line Arguments
-    ##-------------------------------------------------------------------------
-    ## create a parser object for understanding command-line arguments
-    parser = GooeyParser(
-             description="Get VNC sessions.")
-    ## add flags
-    parser.add_argument("--control0", dest="control0",
-        default=True, action="store_true",
-        help="Open control0?")
-    parser.add_argument("--control1", dest="control1",
-        default=True, action="store_true",
-        help="Open control1?")
-    parser.add_argument("--control2", dest="control2",
-        default=True, action="store_true",
-        help="Open control2?")
-    parser.add_argument("--telstatus", dest="telstatus",
-        default=False, action="store_true",
-        help="Open telstatus?")
-    parser.add_argument("--analysis0", dest="analysis0",
-        default=False, action="store_true",
-        help="Open analysis0?")
-    parser.add_argument("--analysis1", dest="analysis1",
-        default=False, action="store_true",
-        help="Open analysis1?")
-    parser.add_argument("--analysis2", dest="analysis2",
-        default=False, action="store_true",
-        help="Open analysis2?")
-    parser.add_argument("--telanalys", dest="telanalys",
-        default=False, action="store_true",
-        help="Open telanalys?")
-    parser.add_argument("--status", dest="status",
-        default=True, action="store_true",
-        help="Open status for telescope?")
-    ## add optional arguments
-    parser.add_argument("-f", "--firewall",
-        dest="firewall",
-        default='', help="Authenticate?")
-    parser.add_argument("-c", "--close",
-        dest="close",
-        default='', help="Close Authentication?")
-    ## add arguments
-    parser.add_argument("account", type=str,
-        help="The user account.")
-    parser.add_argument("password", type=str, widget='PasswordField',
-        help="The account password.")
-    args = parser.parse_args()
-
-    sessions_to_open = []
-    if args.control0 is True:
-        sessions_to_open.append('control0')
-    if args.control1 is True:
-        sessions_to_open.append('control1')
-    if args.control2 is True:
-        sessions_to_open.append('control2')
-    if args.telstatus is True:
-        sessions_to_open.append('telstatus')
-    if args.analysis0 is True:
-        sessions_to_open.append('analysis0')
-    if args.analysis1 is True:
-        sessions_to_open.append('analysis1')
-    if args.analysis2 is True:
-        sessions_to_open.append('analysis2')
-    if args.telanalys is True:
-        sessions_to_open.append('telanalys')
-    if args.status is True:
-        sessions_to_open.append('status')
-
+def main(args):
 
     ##-------------------------------------------------------------------------
     ## Authenticate Through Firewall (or Disconnect)
@@ -322,39 +256,42 @@ def main():
     ##-------------------------------------------------------------------------
     ## Open SSH Tunnel for Appropriate Ports
     ##-------------------------------------------------------------------------
-    ssh_threads = []
-    vnc_threads = []
-    ports_in_use = []
-    for session in sessions:
-        if session['name'] in sessions_to_open:
-            log.info(f"Opening SSH tunnel for {session['name']}")
-            port = int(session['Display'][1:])
-            ports_in_use.append(port)
-            sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L "+\
-                    f"59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
-            log.info(f"Opening xterm for {session['Desktop']}")
+    if args.firewall != '':
+        ssh_threads = []
+        ports_in_use = []
+        for session in sessions:
+            if session['name'] in sessions_to_open:
+                log.info(f"Opening SSH tunnel for {session['name']}")
+                port = int(session['Display'][1:])
+                ports_in_use.append(port)
+                sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L "+\
+                        f"59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
+                log.info(f"Opening xterm for {session['Desktop']}")
+                ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
+                                   args.password, session['Desktop'])))
+                ssh_threads[-1].start()
+        if args.status is True:
+            statusport = [p for p in range(1,10,1) if p not in ports_in_use][0]
+            sshcmd = f"ssh {args.account}@svncserver{tel}.keck.hawaii.edu -L "+\
+                     f"5901:svncserver{tel}.keck.hawaii.edu:59{statusport:02d} -N"
+            log.info(f"Opening xterm for k{tel}status")
             ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
-                               args.password, session['Desktop'])))
+                               args.password, f"k{tel}status")))
             ssh_threads[-1].start()
-    if args.status is True:
-        statusport = [p for p in range(1,10,1) if p not in ports_in_use][0]
-        sshcmd = f"ssh {args.account}@svncserver{tel}.keck.hawaii.edu -L "+\
-                 f"5901:svncserver{tel}.keck.hawaii.edu:59{statusport:02d} -N"
-        log.info(f"Opening xterm for k{tel}status")
-        ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
-                           args.password, f"k{tel}status")))
-        ssh_threads[-1].start()
-
-    cont = input('Hit any key when password has been entered.')
+        cont = input('Hit any key when password has been entered.')
 
     ##-------------------------------------------------------------------------
     ## Open vncviewers
     ##-------------------------------------------------------------------------
+    vnc_threads = []
+    if args.firewall != '':
+        vncserver = 'localhost'
     for session in sessions:
         if session['name'] in sessions_to_open:
             log.info(f"Opening VNCviewer for {session['name']}")
             port = int(session['Display'][1:])
-            vnc_threads.append(Thread(target=launch_vncviewer, args=(port,)))
+            vnc_threads.append(Thread(target=launch_vncviewer,
+                                      args=(vncserver, port,)))
             vnc_threads[-1].start()
     if args.status is True:
         log.info(f"Opening VNCviewer for k{tel}status")
@@ -362,5 +299,77 @@ def main():
         vnc_threads[-1].start()
 
 
+##-------------------------------------------------------------------------
+## __main__
+##-------------------------------------------------------------------------
 if __name__ == '__main__':
-    main()
+    ## create a parser object for understanding command-line arguments
+    parser = GooeyParser(
+             description="Get VNC sessions.")
+    ## add flags
+    parser.add_argument("--control0", dest="control0",
+        default=True, action="store_true",
+        help="Open control0?")
+    parser.add_argument("--control1", dest="control1",
+        default=True, action="store_true",
+        help="Open control1?")
+    parser.add_argument("--control2", dest="control2",
+        default=True, action="store_true",
+        help="Open control2?")
+    parser.add_argument("--telstatus", dest="telstatus",
+        default=False, action="store_true",
+        help="Open telstatus?")
+    parser.add_argument("--analysis0", dest="analysis0",
+        default=False, action="store_true",
+        help="Open analysis0?")
+    parser.add_argument("--analysis1", dest="analysis1",
+        default=False, action="store_true",
+        help="Open analysis1?")
+    parser.add_argument("--analysis2", dest="analysis2",
+        default=False, action="store_true",
+        help="Open analysis2?")
+    parser.add_argument("--telanalys", dest="telanalys",
+        default=False, action="store_true",
+        help="Open telanalys?")
+    parser.add_argument("--status", dest="status",
+        default=False, action="store_true",
+        help="Open status for telescope?")
+    ## add optional arguments
+    parser.add_argument("-f", "--firewall",
+        dest="firewall",
+        default='', help="Authenticate?")
+    parser.add_argument("-c", "--close",
+        dest="close",
+        default='', help="Close Authentication?")
+    ## add arguments
+    parser.add_argument("account", type=str,
+        help="The user account.")
+    parser.add_argument("password", type=str, widget='PasswordField',
+        help="The account password.")
+    args = parser.parse_args()
+
+    sessions_to_open = []
+    if args.control0 is True:
+        sessions_to_open.append('control0')
+    if args.control1 is True:
+        sessions_to_open.append('control1')
+    if args.control2 is True:
+        sessions_to_open.append('control2')
+    if args.telstatus is True:
+        sessions_to_open.append('telstatus')
+    if args.analysis0 is True:
+        sessions_to_open.append('analysis0')
+    if args.analysis1 is True:
+        sessions_to_open.append('analysis1')
+    if args.analysis2 is True:
+        sessions_to_open.append('analysis2')
+    if args.telanalys is True:
+        sessions_to_open.append('telanalys')
+    if args.status is True:
+        sessions_to_open.append('status')
+
+    try:
+        main(args)
+    except KeyboardInterrupt:
+        if args.firewall != '' or args.close != '':
+            close_authentication()
