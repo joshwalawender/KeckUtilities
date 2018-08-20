@@ -18,6 +18,19 @@ from gooey import Gooey, GooeyParser
 
 
 ##-------------------------------------------------------------------------
+## Create logger object
+##-------------------------------------------------------------------------
+log = logging.getLogger('GetVNCs')
+log.setLevel(logging.DEBUG)
+## Set up console output
+LogConsoleHandler = logging.StreamHandler()
+LogConsoleHandler.setLevel(logging.DEBUG)
+LogFormat = logging.Formatter('%(asctime)23s %(levelname)8s: %(message)s')
+LogConsoleHandler.setFormatter(LogFormat)
+log.addHandler(LogConsoleHandler)
+
+
+##-------------------------------------------------------------------------
 ## Get Configuration
 ##-------------------------------------------------------------------------
 def get_config(filename='keck_vnc_config.yaml'):
@@ -69,7 +82,7 @@ def authenticate(authpass):
         if re.search('User authorized for standard services', result):
             return True
         else:
-            print(result)
+            log.info(result)
             return None
 
 
@@ -92,7 +105,7 @@ def close_authentication(authpass):
         if re.search('User was signed off from all services', result):
             return True
         else:
-            print(result)
+            log.info(result)
             return None
 
 
@@ -122,9 +135,21 @@ def determine_instrument(accountname):
     accounts['nirspec'].append('nirspeceng')
     accounts['kcwi'].append('kcwieng')
 
+    telescope = {'mosfire': 1,
+                 'hires': 1,
+                 'osiris': 1,
+                 'lris': 1,
+                 'nires': 2,
+                 'deimos': 2,
+                 'esi': 2,
+                 'nirc2': 2,
+                 'nirspec': 2,
+                 'kcwi': 2,
+                }
+
     for instrument in accounts.keys():
         if accountname.lower() in accounts[instrument]:
-            return instrument
+            return instrument, telescope[instrument]
 
 
 ##-------------------------------------------------------------------------
@@ -136,17 +161,17 @@ def determine_VNCserver(accountname, password):
     vncserver = None
     for s in servers_to_try:
         try:
-            print(f'Trying {s}:')
+            log.info(f'Trying {s}:')
             client = paramiko.SSHClient()
             client.load_system_host_keys()
             client.set_missing_host_key_policy(paramiko.WarningPolicy())
             client.connect(f"{s}.keck.hawaii.edu", port=22, timeout=6,
                            username=accountname, password=password)
-            print('  Connected')
+            log.info('  Connected')
         except TimeoutError:
-            print('  Timeout')
+            log.info('  Timeout')
         except:
-            print('  Failed')
+            log.info('  Failed')
         else:
             stdin, stdout, stderr = client.exec_command('kvncinfo -server')
             rawoutput = stdout.read()
@@ -154,7 +179,7 @@ def determine_VNCserver(accountname, password):
         finally:
             client.close()
             if vncserver is not None:
-                print(f"Got VNC server: {vncserver}")
+                log.info(f"Got VNC server: {vncserver}")
                 break
     return vncserver
 
@@ -169,11 +194,11 @@ def determine_VNC_sessions(accountname, password, vncserver):
         client.set_missing_host_key_policy(paramiko.WarningPolicy())
         client.connect(f"{vncserver}.keck.hawaii.edu", port=22, timeout=6,
                        username=accountname, password=password)
-        print('  Connected')
+        log.info('  Connected')
     except TimeoutError:
-        print('  Timeout')
+        log.info('  Timeout')
     except:
-        print('  Failed')
+        log.info('  Failed')
     else:
         stdin, stdout, stderr = client.exec_command('kvncstatus')
         rawoutput = stdout.read()
@@ -224,6 +249,9 @@ def main():
     parser.add_argument("--telanalys", dest="telanalys",
         default=False, action="store_true",
         help="Open telanalys?")
+    parser.add_argument("--status", dest="status",
+        default=True, action="store_true",
+        help="Open status for telescope?")
     ## add optional arguments
     parser.add_argument("-f", "--firewall",
         dest="firewall",
@@ -255,18 +283,8 @@ def main():
         sessions_to_open.append('analysis2')
     if args.telanalys is True:
         sessions_to_open.append('telanalys')
-
-    ##-------------------------------------------------------------------------
-    ## Create logger object
-    ##-------------------------------------------------------------------------
-    log = logging.getLogger('MyLogger')
-    log.setLevel(logging.DEBUG)
-    ## Set up console output
-    LogConsoleHandler = logging.StreamHandler()
-    LogConsoleHandler.setLevel(logging.DEBUG)
-    LogFormat = logging.Formatter('%(asctime)23s %(levelname)8s: %(message)s')
-    LogConsoleHandler.setFormatter(LogFormat)
-    log.addHandler(LogConsoleHandler)
+    if args.status is True:
+        sessions_to_open.append('status')
 
 
     ##-------------------------------------------------------------------------
@@ -282,7 +300,7 @@ def main():
     ##-------------------------------------------------------------------------
     ## Determine instrument
     ##-------------------------------------------------------------------------
-    instrument = determine_instrument(args.account)
+    instrument, telescope = determine_instrument(args.account)
 
 
     ##-------------------------------------------------------------------------
@@ -296,109 +314,51 @@ def main():
     ##-------------------------------------------------------------------------
     sessions = determine_VNC_sessions(args.account, args.password, vncserver)
     if len(sessions) == 0:
-        print('No VNC sessions found')
+        log.info('No VNC sessions found')
         return
-    else:
-        print(sessions.pprint())
 
+    print(sessions.pprint())
+
+    ##-------------------------------------------------------------------------
+    ## Open SSH Tunnel for Appropriate Ports
+    ##-------------------------------------------------------------------------
     ssh_threads = []
     vncviewer_threads = []
-
+    ports_in_use = []
     for session in sessions:
         if session['name'] in sessions_to_open:
+            log.info(f"Opening SSH tunnel for {session['name']}")
             port = int(session['Display'][1:])
+            ports_in_use.append(port)
             sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L 59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
-            print(f"Opening xterm for {session['Desktop']}")
+            log.info(f"Opening xterm for {session['Desktop']}")
             ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"', args.password, session['Desktop'])))
             ssh_threads[-1].start()
+    if args.status is True:
+        status_destport = [p for p in range(1,10,1) if p not in ports_in_use][0]
+        sshcmd = f"ssh {args.account}@svncserver{telescope}.keck.hawaii.edu -L 5901:svncserver{telescope}.keck.hawaii.edu:59{status_destport:02d} -N"
+        log.info(f"Opening xterm for k{telescope}status")
+        ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"', args.password, f"k{telescope}status")))
+        ssh_threads[-1].start()
 
     cont = input('Hit any key when password has been entered.')
 
+    ##-------------------------------------------------------------------------
+    ## Open vncviewers
+    ##-------------------------------------------------------------------------
     for session in sessions:
         if session['name'] in sessions_to_open:
+            log.info(f"Opening VNCviewer for {session['name']}")
             port = int(session['Display'][1:])
             vncviewer_threads.append(Thread(target=launch_vncviewer, args=(port,)))
             vncviewer_threads[-1].start()
+    if args.status is True:
+        log.info(f"Opening VNCviewer for k{telescope}status")
+        vncviewer_threads.append(Thread(target=launch_vncviewer, args=(status_destport,)))
+        vncviewer_threads[-1].start()
 
 
 
-
-    ##-------------------------------------------------------------------------
-    ## Print my unix session and k1/2status
-    ##-------------------------------------------------------------------------
-#     if inKeck:
-#         print("open vnc://xserver1:5932")
-#     else:
-#         displayname = "jwalawender@xserver1"
-#         hostname = "xserver1.keck.hawaii.edu"
-#         outs = [f"# {displayname:<9s}:",
-#                 f"/usr/bin/ssh jwalawender@{hostname} -L 5932:{hostname}:5932 -N",
-#                 f"open vnc://localhost:5932",
-#                 f""]
-#         for line in outs:
-#             print(line)
-# 
-#     if inKeck:
-#         print(f"open vnc://svncserver{telescope[instrument]:d}:5901")
-#     else:
-#         displayname = f"k{telescope[instrument]}-status"
-#         hostname = f"svncserver{telescope[instrument]:d}.keck.hawaii.edu"
-#         outs = [f"# {displayname:<9s}:",
-#                 f"/usr/bin/ssh {account}@{hostname} -L 5901:{hostname}:5901 -N",
-#                 f"open vnc://localhost:5901",
-#                 f""]
-#         for line in outs:
-#             print(line)
-
-
-    ##-------------------------------------------------------------------------
-    ## Get Instrument Sessions
-    ##-------------------------------------------------------------------------
-
-#     hostname = f"{vncServer[args.instrument]}.keck.hawaii.edu"
-#     port = 22
-#     command = 'kvncstatus'
-#     log.debug(f'Running {command} on {hostname} as {args.account}')
-# 
-#     try:
-#         client = paramiko.SSHClient()
-#         client.load_system_host_keys()
-#         client.set_missing_host_key_policy(paramiko.WarningPolicy())
-#         client.connect(hostname, port=port, username=args.account, password=args.password)
-#         stdin, stdout, stderr = client.exec_command(command)
-#         rawoutput = stdout.read()
-#         output = rawoutput.decode()
-#     finally:
-#         client.close()
-# 
-#     if output == 'No VNC servers found.\n':
-#         print(f"No VNC servers found for {args.account}")
-#         sys.exit(0)
-# 
-#     tab = Table.read(output, format='ascii')
-#     sessions = tab[tab['User'] == args.account]
-# 
-#     for session in sessions:
-#         matchname = re.match('(\w+)-(\w+)-(\w+)', session['Desktop'])
-#         displayaccount = matchname.group(2)
-#         displayname = matchname.group(3)
-# 
-# 
-#         if inKeck:
-#             print(f"# {displayname:<9s}")
-#             print(f"open vnc://{hostname}:59{session['Display'][1:]}")
-#             if displayname[:7] == 'control':
-#                 Popen(["open", f"vnc://{hostname}:59{session['Display'][1:]}"])
-#         else:
-#             outs = [f"# {displayname:<9s}:",
-#                     f"/usr/bin/ssh {args.account}@{hostname} -L "+\
-#                     f"59{session['Display'][1:]}:{hostname}:59{session['Display'][1:]} -N",
-#                     f"open vnc://localhost:59{session['Display'][1:]}",
-#                     f""]
-#             for line in outs:
-#                 print(line)
-
-    
 
 if __name__ == '__main__':
     main()
