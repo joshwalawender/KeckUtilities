@@ -323,7 +323,7 @@ def main():
     ## Open SSH Tunnel for Appropriate Ports
     ##-------------------------------------------------------------------------
     ssh_threads = []
-    vncviewer_threads = []
+    vnc_threads = []
     ports_in_use = []
     for session in sessions:
         if session['name'] in sessions_to_open:
@@ -331,15 +331,15 @@ def main():
             port = int(session['Display'][1:])
             ports_in_use.append(port)
             sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L "+\
-                     f"59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
+                    f"59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
             log.info(f"Opening xterm for {session['Desktop']}")
             ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
                                args.password, session['Desktop'])))
             ssh_threads[-1].start()
     if args.status is True:
-        status_port = [p for p in range(1,10,1) if p not in ports_in_use][0]
+        statusport = [p for p in range(1,10,1) if p not in ports_in_use][0]
         sshcmd = f"ssh {args.account}@svncserver{tel}.keck.hawaii.edu -L "+\
-                 f"5901:svncserver{tel}.keck.hawaii.edu:59{status_port:02d} -N"
+                 f"5901:svncserver{tel}.keck.hawaii.edu:59{statusport:02d} -N"
         log.info(f"Opening xterm for k{telescope}status")
         ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
                            args.password, f"k{telescope}status")))
@@ -354,14 +354,12 @@ def main():
         if session['name'] in sessions_to_open:
             log.info(f"Opening VNCviewer for {session['name']}")
             port = int(session['Display'][1:])
-            vncviewer_threads.append(Thread(target=launch_vncviewer,
-                                     args=(port,)))
-            vncviewer_threads[-1].start()
+            vnc_threads.append(Thread(target=launch_vncviewer, args=(port,)))
+            vnc_threads[-1].start()
     if args.status is True:
         log.info(f"Opening VNCviewer for k{tel}status")
-        vncviewer_threads.append(Thread(target=launch_vncviewer,
-                                 args=(status_port,)))
-        vncviewer_threads[-1].start()
+        vnc_threads.append(Thread(target=launch_vncviewer, args=(statusport,)))
+        vnc_threads[-1].start()
 
 
 if __name__ == '__main__':
