@@ -300,7 +300,7 @@ def main():
     ##-------------------------------------------------------------------------
     ## Determine instrument
     ##-------------------------------------------------------------------------
-    instrument, telescope = determine_instrument(args.account)
+    instrument, tel = determine_instrument(args.account)
 
 
     ##-------------------------------------------------------------------------
@@ -330,15 +330,19 @@ def main():
             log.info(f"Opening SSH tunnel for {session['name']}")
             port = int(session['Display'][1:])
             ports_in_use.append(port)
-            sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L 59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
+            sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L "+\
+                     f"59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
             log.info(f"Opening xterm for {session['Desktop']}")
-            ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"', args.password, session['Desktop'])))
+            ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
+                               args.password, session['Desktop'])))
             ssh_threads[-1].start()
     if args.status is True:
-        status_destport = [p for p in range(1,10,1) if p not in ports_in_use][0]
-        sshcmd = f"ssh {args.account}@svncserver{telescope}.keck.hawaii.edu -L 5901:svncserver{telescope}.keck.hawaii.edu:59{status_destport:02d} -N"
+        status_port = [p for p in range(1,10,1) if p not in ports_in_use][0]
+        sshcmd = f"ssh {args.account}@svncserver{tel}.keck.hawaii.edu -L "+\
+                 f"5901:svncserver{tel}.keck.hawaii.edu:59{status_port:02d} -N"
         log.info(f"Opening xterm for k{telescope}status")
-        ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"', args.password, f"k{telescope}status")))
+        ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
+                           args.password, f"k{telescope}status")))
         ssh_threads[-1].start()
 
     cont = input('Hit any key when password has been entered.')
@@ -350,14 +354,14 @@ def main():
         if session['name'] in sessions_to_open:
             log.info(f"Opening VNCviewer for {session['name']}")
             port = int(session['Display'][1:])
-            vncviewer_threads.append(Thread(target=launch_vncviewer, args=(port,)))
+            vncviewer_threads.append(Thread(target=launch_vncviewer,
+                                     args=(port,)))
             vncviewer_threads[-1].start()
     if args.status is True:
-        log.info(f"Opening VNCviewer for k{telescope}status")
-        vncviewer_threads.append(Thread(target=launch_vncviewer, args=(status_destport,)))
+        log.info(f"Opening VNCviewer for k{tel}status")
+        vncviewer_threads.append(Thread(target=launch_vncviewer,
+                                 args=(status_port,)))
         vncviewer_threads[-1].start()
-
-
 
 
 if __name__ == '__main__':
