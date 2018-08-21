@@ -57,8 +57,8 @@ def launch_xterm(command, pw, title):
 ##-------------------------------------------------------------------------
 def launch_vncviewer(vncserver, port, pw=None):
     config = get_config()
-    cmd = [config['vncviewer'], f'{vncserver}:59{port:02d}']
-    log.info(f"  {' '.join(cmd)}")
+    cmd = [config['vncviewer'], f'{vncserver}:{port:4d}']
+    log.info(f"  Launching VNC viewer for {cmd[-1]}")
     vncviewer = subprocess.call(cmd)
 
 
@@ -185,7 +185,7 @@ def determine_VNCserver(accountname, password):
             if vncserver is not None:
                 log.info(f"Got VNC server: {vncserver}")
                 break
-    return vncserver
+    return f"{vncserver}.keck.hawaii.edu"
 
 
 ##-------------------------------------------------------------------------
@@ -196,7 +196,7 @@ def determine_VNC_sessions(accountname, password, vncserver):
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.WarningPolicy())
-        client.connect(f"{vncserver}.keck.hawaii.edu", port=22, timeout=6,
+        client.connect(vncserver, port=22, timeout=6,
                        username=accountname, password=password)
         log.info('  Connected')
     except TimeoutError:
@@ -248,29 +248,30 @@ def main(args, config):
         log.info('No VNC sessions found')
         return
 
-    print(sessions.pprint())
+    print(sessions)
 
     ##-------------------------------------------------------------------------
     ## Open SSH Tunnel for Appropriate Ports
     ##-------------------------------------------------------------------------
+    ports_in_use = []
     if config['authenticate'] is True:
         ssh_threads = []
-        ports_in_use = []
         for session in sessions:
             if session['name'] in sessions_to_open:
                 log.info(f"Opening SSH tunnel for {session['name']}")
-                port = int(session['Display'][1:])
+                display = int(session['Display'][1:])
+                port = int(f"59{display:02d}")
                 ports_in_use.append(port)
-                sshcmd = f"ssh {args.account}@{vncserver}.keck.hawaii.edu -L "+\
-                        f"59{port:02d}:{vncserver}.keck.hawaii.edu:59{port:02d} -N"
+                sshcmd = f"ssh {args.account}@{vncserver} -L "+\
+                        f"{port:4d}:{vncserver}:{port:4d} -N"
                 log.info(f"Opening xterm for {session['Desktop']}")
                 ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
                                    args.password, session['Desktop'])))
                 ssh_threads[-1].start()
         if args.status is True:
-            statusport = [p for p in range(1,10,1) if p not in ports_in_use][0]
+            statusport = [p for p in range(5901,5910,1) if p not in ports_in_use][0]
             sshcmd = f"ssh {args.account}@svncserver{tel}.keck.hawaii.edu -L "+\
-                     f"5901:svncserver{tel}.keck.hawaii.edu:59{statusport:02d} -N"
+                     f"5901:svncserver{tel}.keck.hawaii.edu:{statusport:4d} -N"
             log.info(f"Opening xterm for k{tel}status")
             ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
                                args.password, f"k{tel}status")))
@@ -286,13 +287,16 @@ def main(args, config):
     for session in sessions:
         if session['name'] in sessions_to_open:
             log.info(f"Opening VNCviewer for {session['name']}")
-            port = int(session['Display'][1:])
+            display = int(session['Display'][1:])
+            port = int(f"59{display:02d}")
             vnc_threads.append(Thread(target=launch_vncviewer,
                                       args=(vncserver, port,)))
             vnc_threads[-1].start()
     if args.status is True:
+        statusport = [p for p in range(5901,5910,1) if p not in ports_in_use][0]
         log.info(f"Opening VNCviewer for k{tel}status")
-        vnc_threads.append(Thread(target=launch_vncviewer, args=(statusport,)))
+        vnc_threads.append(Thread(target=launch_vncviewer,
+                    args=(f"svncserver{tel}.keck.hawaii.edu", statusport,)))
         vnc_threads[-1].start()
 
 
