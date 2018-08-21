@@ -372,5 +372,5 @@ if __name__ == '__main__':
     try:
         main(args, config)
     except KeyboardInterrupt:
-        if args.firewall != '' or args.close != '':
+        if config['authenticate'] is True:
             close_authentication()
