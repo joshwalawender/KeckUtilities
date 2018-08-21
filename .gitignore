@@ -3,5 +3,4 @@
 *.png
 starlist.txt
 output.txt
-keck_vnc_config.yaml
 __pycache__

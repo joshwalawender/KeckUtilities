@@ -1,0 +1,18 @@
+{
+ ## If you are outside of the Keck network and need to authenticate through the
+ ## Keck firewall, uncomment and fill out the appropriate IP address, port, and
+ ## username which will be used to authenticate.
+ ## If this is being run inside of the Keck network, leave these lines
+ ## commented out.
+# firewall_address: 111.222.333.444,
+# firewall_port: 123,
+# firewall_user: username,
+ ##
+ ## When first connecting to Keck to determine which VNC server to connect to
+ ## (i.e. where to run `kvncinfo -server`) this is the list of computers to try
+ servers_to_try: ['svncserver1', 'svncserver2'],
+ ##
+ ## This is the command to invoke on the local machine to launch a VNC client
+ ## Command will be formatted as [vncviewer] [address]:[port]
+ vncviewer: '/Applications/VNC Viewer.app/Contents/MacOS/vncviewer',
+}
