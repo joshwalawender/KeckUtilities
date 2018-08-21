@@ -292,6 +292,7 @@ def main(args, config):
             vnc_threads.append(Thread(target=launch_vncviewer,
                                       args=(vncserver, port,)))
             vnc_threads[-1].start()
+            sleep(0.05)
     if args.status is True:
         statusport = [p for p in range(5901,5910,1) if p not in ports_in_use][0]
         log.info(f"Opening VNCviewer for k{tel}status")
