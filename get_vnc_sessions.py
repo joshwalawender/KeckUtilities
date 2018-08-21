@@ -6,6 +6,7 @@ import re
 import argparse
 import logging
 import yaml
+from getpass import getpass
 import paramiko
 import subprocess
 from time import sleep
@@ -219,15 +220,11 @@ def determine_VNC_sessions(accountname, password, vncserver):
 ## Main Program
 ##-------------------------------------------------------------------------
 # @Gooey
-def main(args):
-
+def main(args, config):
     ##-------------------------------------------------------------------------
     ## Authenticate Through Firewall (or Disconnect)
     ##-------------------------------------------------------------------------
-    if args.close != '':
-        close_authentication(args.close)
-        return
-    if args.firewall != '':
+    if config['authenticate'] is True:
         authenticate(args.firewall)
 
 
@@ -256,7 +253,7 @@ def main(args):
     ##-------------------------------------------------------------------------
     ## Open SSH Tunnel for Appropriate Ports
     ##-------------------------------------------------------------------------
-    if args.firewall != '':
+    if config['authenticate'] is True:
         ssh_threads = []
         ports_in_use = []
         for session in sessions:
@@ -284,7 +281,7 @@ def main(args):
     ## Open vncviewers
     ##-------------------------------------------------------------------------
     vnc_threads = []
-    if args.firewall != '':
+    if config['authenticate'] is True:
         vncserver = 'localhost'
     for session in sessions:
         if session['name'] in sessions_to_open:
@@ -334,19 +331,15 @@ if __name__ == '__main__':
     parser.add_argument("--status", dest="status",
         default=False, action="store_true",
         help="Open status for telescope?")
-    ## add optional arguments
-    parser.add_argument("-f", "--firewall",
-        dest="firewall",
-        default='', help="Authenticate?")
-    parser.add_argument("-c", "--close",
-        dest="close",
-        default='', help="Close Authentication?")
     ## add arguments
     parser.add_argument("account", type=str,
         help="The user account.")
-    parser.add_argument("password", type=str, widget='PasswordField',
-        help="The account password.")
+    parser.add_argument("-p", "--password", type=str, widget='PasswordField',
+        default=None, help="The account password.")
     args = parser.parse_args()
+
+    if args.password is None:
+        args.password = getpass(f"Password for {args.account}: ")
 
     sessions_to_open = []
     if args.control0 is True:
@@ -368,8 +361,16 @@ if __name__ == '__main__':
     if args.status is True:
         sessions_to_open.append('status')
 
+    config = get_config()
+    if 'firewall_address' in config.keys() and\
+       'firewall_user' in config.keys() and\
+       'firewall_port' in config.keys():
+        config['authenticate'] = True
+    else:
+        config['authenticate'] = False
+
     try:
-        main(args)
+        main(args, config)
     except KeyboardInterrupt:
         if args.firewall != '' or args.close != '':
             close_authentication()
