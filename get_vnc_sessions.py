@@ -252,15 +252,14 @@ def main(args, config):
     ##-------------------------------------------------------------------------
     ## Determine VNC server
     ##-------------------------------------------------------------------------
-    if args.password is None:
-        args.password = getpass(f"Password for user {args.account}: ")
-    vncserver = determine_VNCserver(args.account, args.password)
+    password = getpass(f"Password for user {args.account}: ")
+    vncserver = determine_VNCserver(args.account, password)
 
 
     ##-------------------------------------------------------------------------
     ## Determine VNC Sessions
     ##-------------------------------------------------------------------------
-    sessions = determine_VNC_sessions(args.account, args.password, vncserver)
+    sessions = determine_VNC_sessions(args.account, password, vncserver)
     if len(sessions) == 0:
         log.info('No VNC sessions found')
         return
@@ -281,7 +280,7 @@ def main(args, config):
                 ports_in_use.append(port)
                 server = SSHTunnelForwarder(vncserver,
                                   ssh_username=args.account,
-                                  ssh_password=args.password,
+                                  ssh_password=password,
                                   remote_bind_address=('127.0.0.1', port),
                                   local_bind_address=('0.0.0.0', port),
                                   )
@@ -290,9 +289,10 @@ def main(args, config):
         if args.status is True:
             statusport = [p for p in range(5901,5910,1)
                           if p not in ports_in_use][0]
+            log.info(f"Opening SSH tunnel for k{tel}status on {statusport:d}")
             server = SSHTunnelForwarder(f"svncserver{tel}.keck.hawaii.edu",
                               ssh_username=args.account,
-                              ssh_password=args.password,
+                              ssh_password=password,
                               remote_bind_address=('127.0.0.1', 5901),
                               local_bind_address=('0.0.0.0', statusport),
                               )
