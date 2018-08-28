@@ -17,8 +17,6 @@ from telnetlib import Telnet
 from subprocess import Popen
 from astropy.table import Table, Column
 
-from gooey import Gooey, GooeyParser
-
 
 ##-------------------------------------------------------------------------
 ## Create logger object
@@ -235,7 +233,6 @@ def determine_VNC_sessions(accountname, password, vncserver):
 ##-------------------------------------------------------------------------
 ## Main Program
 ##-------------------------------------------------------------------------
-# @Gooey
 def main(args, config):
     ##-------------------------------------------------------------------------
     ## Authenticate Through Firewall (or Disconnect)
@@ -353,7 +350,7 @@ def main(args, config):
 ##-------------------------------------------------------------------------
 if __name__ == '__main__':
     ## create a parser object for understanding command-line arguments
-    parser = GooeyParser(
+    parser = argparse.ArgumentParser(
              description="Get VNC sessions.")
     ## add flags
     parser.add_argument("--control0", dest="control0",
@@ -377,7 +374,7 @@ if __name__ == '__main__':
     parser.add_argument("--analysis2", dest="analysis2",
         default=False, action="store_true",
         help="Open analysis2?")
-    parser.add_argument("--telanalys", dest="telanalys",
+    parser.add_argument("--telanalysis", "--telanalys", dest="telanalys",
         default=False, action="store_true",
         help="Open telanalys?")
     parser.add_argument("--status", dest="status",
@@ -386,8 +383,6 @@ if __name__ == '__main__':
     ## add arguments
     parser.add_argument("account", type=str,
         help="The user account.")
-    parser.add_argument("-p", "--password", type=str, widget='PasswordField',
-        default=None, help="The account password.")
     args = parser.parse_args()
 
     sessions_to_open = []
