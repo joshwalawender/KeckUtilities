@@ -16,17 +16,17 @@ The script will determine what instrument is being requested from the numbered a
 python get_vnc_sessions.py [instrument numbered account] --analysis0 --analysis1 --analysis2 --telstatus --telanalysis --status
 ```
 
-## Firewall authentication
+### Firewall authentication
 
 The script uses a configuration file to determine whether to authenticate through the Keck firewall or not.  An example configuration file (`keck_vnc_config.yaml`) is included in the repository.  To customize it for your installation, copy the example to `local_config.yaml` and edit.
 
 If the lines specifying the `firewall_address`, `firewall_port`, and `firewall_user` are uncommented and filled in with the appropriate info, the script will authenticate through the firewall before making the connection.
 
-## Passwords
+### Passwords
 
 The script will query for the passwords it needs using the python `getpass` module.  A user outside of keck will need the password for firewall access (assuming they have filled out the firewall info in the configuration file), they will also need the password for the user account they specified when they invoked the script.  Finally, they will need the VNC password when their local VNC viewer asks for it.
 
-## VNC Viewers
+### VNC Viewers
 
 The configuration file contains the path to the VNC viewer executable on the local system.  The default config file contains the path for the `vncviewer` application from RealVNC on macOS at the current time.  Customize for your system as needed.  The script assumes that the command it needs to invoke is of the format:
 
@@ -35,6 +35,18 @@ The configuration file contains the path to the VNC viewer executable on the loc
 ```
 
 If you wish to launch your VNCviewer application manually, put "None" in the configuration file for the `vncviewer` value.
+
+### Closing Sessions
+
+The program will stop after opening the VNC sessions with the query:
+
+```
+Hit q to close down any SSH tunnels and firewall auth: 
+```
+
+Press `q` and _Enter_ and the program will close all VNC sessions, terminate any SSH tunnels which may have been opened, and close the firewall authentication.
+
+
 
 ## SupportNightCalendar.py
 
