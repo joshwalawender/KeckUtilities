@@ -306,6 +306,9 @@ def main(args, config):
     vnc_threads = []
     if config['authenticate'] is True:
         vncserver = 'localhost'
+        statusvncserver = 'localhost'
+    else:
+        statusvncserver = f"svncserver{tel}.keck.hawaii.edu"
     for session in sessions:
         if session['name'] in sessions_to_open:
             log.info(f"Opening VNCviewer for {session['name']}")
@@ -316,13 +319,11 @@ def main(args, config):
             vnc_threads[-1].start()
             sleep(0.05)
     if args.status is True:
-        statusport = [p for p in range(5901,5910,1)
-                      if p not in ports_in_use][0]
-        log.info(f"Opening VNCviewer for k{tel}status")
+        log.info(f"Opening VNCviewer for k{tel}status on {statusport}")
         vnc_threads.append(Thread(target=launch_vncviewer,
-                    args=(f"svncserver{tel}.keck.hawaii.edu", statusport,)))
+                    args=(statusvncserver, statusport,)))
         vnc_threads[-1].start()
-    
+
 
     ##-------------------------------------------------------------------------
     ## Wait for quit signal
