@@ -2,6 +2,40 @@
 
 A few utility scripts for use at Keck Observatory.
 
+## get_vnc_sessions.py
+
+This script can be used to open up VNC sessions:
+
+```
+python get_vnc_sessions.py [instrument numbered account]
+```
+
+The script will determine what instrument is being requested from the numbered account name, it will query a Keck server to determine which VNC server it should connect to and then it will open the VNC sessions corresponding to the control0, control1, and control2 desktops.  Other desktops can be opened via command line flags.  For example, to open the 3 analysis desktops, telstatus, telanalysis, and the appropriate kNstatus desktop as well:
+
+```
+python get_vnc_sessions.py [instrument numbered account] --analysis0 --analysis1 --analysis2 --telstatus --telanalysis --status
+```
+
+## Firewall authentication
+
+The script uses a configuration file to determine whether to authenticate through the Keck firewall or not.  An example configuration file (`keck_vnc_config.yaml`) is included in the repository.  To customize it for your installation, copy the example to `local_config.yaml` and edit.
+
+If the lines specifying the `firewall_address`, `firewall_port`, and `firewall_user` are uncommented and filled in with the appropriate info, the script will authenticate through the firewall before making the connection.
+
+## Passwords
+
+The script will query for the passwords it needs using the python `getpass` module.  A user outside of keck will need the password for firewall access (assuming they have filled out the firewall info in the configuration file), they will also need the password for the user account they specified when they invoked the script.  Finally, they will need the VNC password when their local VNC viewer asks for it.
+
+## VNC Viewers
+
+The configuration file contains the path to the VNC viewer executable on the local system.  The default config file contains the path for the `vncviewer` application from RealVNC on macOS at the current time.  Customize for your system as needed.  The script assumes that the command it needs to invoke is of the format:
+
+```
+[vncviewer command including path] [server]:[port]
+```
+
+If you wish to launch your VNCviewer application manually, put "None" in the configuration file for the `vncviewer` value.
+
 ## SupportNightCalendar.py
 
 Used to generate an ICS file (for use in typical calendar applications) of support nights.
