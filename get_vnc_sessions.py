@@ -2,6 +2,7 @@
 
 ## Import General Tools
 import sys
+import os
 import re
 import argparse
 import logging
@@ -35,7 +36,11 @@ log.addHandler(LogConsoleHandler)
 ##-------------------------------------------------------------------------
 ## Get Configuration
 ##-------------------------------------------------------------------------
-def get_config(filename='keck_vnc_config.yaml'):
+def get_config(filenames=['local_config.yaml', 'keck_vnc_config.yaml']):
+    for filename in filenames:
+        if os.path.exists(filename):
+            break
+
     with open(filename) as FO:
         config = yaml.load(FO)
 
