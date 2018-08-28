@@ -8,6 +8,7 @@ import logging
 import yaml
 from getpass import getpass
 import paramiko
+from sshtunnel import SSHTunnelForwarder
 import subprocess
 from time import sleep
 from threading import Thread
@@ -52,6 +53,16 @@ def launch_xterm(command, pw, title):
     xterm = subprocess.call(cmd)
 
 
+def open_ssh_tunnel(server, username, password, remote_port, local_port):
+    server = SSHTunnelForwarder(server,
+                                ssh_username=username,
+                                ssh_password=password,
+                                remote_bind_address=('127.0.0.1', remote_port),
+                                local_bind_address=('0.0.0.0', local_port),
+                                )
+    server.start()
+
+
 ##-------------------------------------------------------------------------
 ## Launch vncviewer
 ##-------------------------------------------------------------------------
@@ -82,7 +93,7 @@ def authenticate(authpass):
         tn.write('1\n'.encode('ascii'))
         result = tn.read_all().decode('ascii')
         if re.search('User authorized for standard services', result):
-            log.info(result)
+            log.info('User authorized for standard services')
             return True
         else:
             log.error(result)
@@ -106,7 +117,7 @@ def close_authentication(authpass):
         tn.write('2\n'.encode('ascii'))
         result = tn.read_all().decode('ascii')
         if re.search('User was signed off from all services', result):
-            log.info(result)
+            log.info('User was signed off from all services')
             return True
         else:
             log.error(result)
@@ -225,7 +236,9 @@ def main(args, config):
     ## Authenticate Through Firewall (or Disconnect)
     ##-------------------------------------------------------------------------
     if config['authenticate'] is True:
-        authenticate(args.firewall)
+        authpass = getpass(f"Password for firewall authentication: ")
+        log.info('Authenticating through firewall')
+        authenticate(authpass)
 
 
     ##-------------------------------------------------------------------------
@@ -237,6 +250,8 @@ def main(args, config):
     ##-------------------------------------------------------------------------
     ## Determine VNC server
     ##-------------------------------------------------------------------------
+    if args.password is None:
+        args.password = getpass(f"Password for user {args.account}: ")
     vncserver = determine_VNCserver(args.account, args.password)
 
 
@@ -262,21 +277,26 @@ def main(args, config):
                 display = int(session['Display'][1:])
                 port = int(f"59{display:02d}")
                 ports_in_use.append(port)
-                sshcmd = f"ssh {args.account}@{vncserver} -L "+\
-                        f"{port:4d}:{vncserver}:{port:4d} -N"
-                log.info(f"Opening xterm for {session['Desktop']}")
-                ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
-                                   args.password, session['Desktop'])))
+                server = SSHTunnelForwarder(vncserver,
+                                  ssh_username=args.account,
+                                  ssh_password=args.password,
+                                  remote_bind_address=('127.0.0.1', port),
+                                  local_bind_address=('0.0.0.0', port),
+                                  )
+                ssh_threads.append(server)
                 ssh_threads[-1].start()
         if args.status is True:
-            statusport = [p for p in range(5901,5910,1) if p not in ports_in_use][0]
-            sshcmd = f"ssh {args.account}@svncserver{tel}.keck.hawaii.edu -L "+\
-                     f"5901:svncserver{tel}.keck.hawaii.edu:{statusport:4d} -N"
-            log.info(f"Opening xterm for k{tel}status")
-            ssh_threads.append(Thread(target=launch_xterm, args=(f'"{sshcmd}"',
-                               args.password, f"k{tel}status")))
+            statusport = [p for p in range(5901,5910,1)
+                          if p not in ports_in_use][0]
+            server = SSHTunnelForwarder(f"svncserver{tel}.keck.hawaii.edu",
+                              ssh_username=args.account,
+                              ssh_password=args.password,
+                              remote_bind_address=('127.0.0.1', 5901),
+                              local_bind_address=('0.0.0.0', statusport),
+                              )
+            ssh_threads.append(server)
             ssh_threads[-1].start()
-        cont = input('Hit any key when password has been entered.')
+
 
     ##-------------------------------------------------------------------------
     ## Open vncviewers
@@ -294,11 +314,33 @@ def main(args, config):
             vnc_threads[-1].start()
             sleep(0.05)
     if args.status is True:
-        statusport = [p for p in range(5901,5910,1) if p not in ports_in_use][0]
+        statusport = [p for p in range(5901,5910,1)
+                      if p not in ports_in_use][0]
         log.info(f"Opening VNCviewer for k{tel}status")
         vnc_threads.append(Thread(target=launch_vncviewer,
                     args=(f"svncserver{tel}.keck.hawaii.edu", statusport,)))
         vnc_threads[-1].start()
+    
+
+    ##-------------------------------------------------------------------------
+    ## Wait for quit signal
+    ##-------------------------------------------------------------------------
+    quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
+    foundq = re.match('^[qQ].*', quit)
+    while foundq is None:
+        sleep(1)
+        quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
+        foundq = re.match('^[qQ].*', quit)
+    
+    ##-------------------------------------------------------------------------
+    ## Close down ssh tunnels and firewall authentication
+    ##-------------------------------------------------------------------------
+    if config['authenticate'] is True:
+        for thread in ssh_threads:
+            log.info(f'Closing SSH forwarding for {thread.local_bind_port}')
+            thread.stop()
+        log.info('Signing off of firewall authentication')
+        close_authentication(authpass)
 
 
 ##-------------------------------------------------------------------------
@@ -343,9 +385,6 @@ if __name__ == '__main__':
         default=None, help="The account password.")
     args = parser.parse_args()
 
-    if args.password is None:
-        args.password = getpass(f"Password for {args.account}: ")
-
     sessions_to_open = []
     if args.control0 is True:
         sessions_to_open.append('control0')
@@ -374,8 +413,4 @@ if __name__ == '__main__':
     else:
         config['authenticate'] = False
 
-    try:
-        main(args, config)
-    except KeyboardInterrupt:
-        if config['authenticate'] is True:
-            close_authentication()
+    main(args, config)
