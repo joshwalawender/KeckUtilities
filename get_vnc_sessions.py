@@ -309,20 +309,24 @@ def main(args, config):
         statusvncserver = 'localhost'
     else:
         statusvncserver = f"svncserver{tel}.keck.hawaii.edu"
-    for session in sessions:
-        if session['name'] in sessions_to_open:
-            log.info(f"Opening VNCviewer for {session['name']}")
-            display = int(session['Display'][1:])
-            port = int(f"59{display:02d}")
+    if config['vncviewer'] in [None, 'None', 'none']:
+        log.info(f"No VNC viewer application specified")
+        log.info(f"Open your VNC viewer manually")
+    else:
+        for session in sessions:
+            if session['name'] in sessions_to_open:
+                log.info(f"Opening VNCviewer for {session['name']}")
+                display = int(session['Display'][1:])
+                port = int(f"59{display:02d}")
+                vnc_threads.append(Thread(target=launch_vncviewer,
+                                          args=(vncserver, port,)))
+                vnc_threads[-1].start()
+                sleep(0.05)
+        if args.status is True:
+            log.info(f"Opening VNCviewer for k{tel}status on {statusport}")
             vnc_threads.append(Thread(target=launch_vncviewer,
-                                      args=(vncserver, port,)))
+                        args=(statusvncserver, statusport,)))
             vnc_threads[-1].start()
-            sleep(0.05)
-    if args.status is True:
-        log.info(f"Opening VNCviewer for k{tel}status on {statusport}")
-        vnc_threads.append(Thread(target=launch_vncviewer,
-                    args=(statusvncserver, statusport,)))
-        vnc_threads[-1].start()
 
 
     ##-------------------------------------------------------------------------
