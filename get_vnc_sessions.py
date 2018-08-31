@@ -9,7 +9,8 @@ import logging
 import yaml
 from getpass import getpass
 import paramiko
-from sshtunnel import SSHTunnelForwarder
+# from sshtunnel import SSHTunnelForwarder
+import sshtunnel
 import subprocess
 from time import sleep
 from threading import Thread
@@ -57,7 +58,7 @@ def launch_xterm(command, pw, title):
 
 
 def open_ssh_tunnel(server, username, password, remote_port, local_port):
-    server = SSHTunnelForwarder(server,
+    server = sshtunnel.SSHTunnelForwarder(server,
                                 ssh_username=username,
                                 ssh_password=password,
                                 remote_bind_address=('127.0.0.1', remote_port),
@@ -278,26 +279,34 @@ def main(args, config):
                 display = int(session['Display'][1:])
                 port = int(f"59{display:02d}")
                 ports_in_use.append(port)
-                server = SSHTunnelForwarder(vncserver,
+                server = sshtunnel.SSHTunnelForwarder(vncserver,
                                   ssh_username=args.account,
                                   ssh_password=password,
                                   remote_bind_address=('127.0.0.1', port),
                                   local_bind_address=('0.0.0.0', port),
                                   )
                 ssh_threads.append(server)
-                ssh_threads[-1].start()
+                try:
+                    ssh_threads[-1].start()
+                except sshtunnel.HandlerSSHTunnelForwarderError as e:
+                    log.error('Failed to open tunnel')
+                    log.error(e)
         if args.status is True:
             statusport = [p for p in range(5901,5910,1)
                           if p not in ports_in_use][0]
             log.info(f"Opening SSH tunnel for k{tel}status on {statusport:d}")
-            server = SSHTunnelForwarder(f"svncserver{tel}.keck.hawaii.edu",
+            server = sshtunnel.SSHTunnelForwarder(f"svncserver{tel}.keck.hawaii.edu",
                               ssh_username=args.account,
                               ssh_password=password,
                               remote_bind_address=('127.0.0.1', 5901),
                               local_bind_address=('0.0.0.0', statusport),
                               )
             ssh_threads.append(server)
-            ssh_threads[-1].start()
+            try:
+                ssh_threads[-1].start()
+            except sshtunnel.HandlerSSHTunnelForwarderError as e:
+                log.error('Failed to open tunnel')
+                log.error(e)
 
 
     ##-------------------------------------------------------------------------
