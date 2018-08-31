@@ -275,15 +275,20 @@ def main(args, config):
         ssh_threads = []
         for session in sessions:
             if session['name'] in sessions_to_open:
-                log.info(f"Opening SSH tunnel for {session['name']}")
                 display = int(session['Display'][1:])
                 port = int(f"59{display:02d}")
-                ports_in_use.append(port)
+                if 'local_ports' in config.keys():
+                    localport = config['local_ports'].pop(0)
+                else:
+                    localport = port
+                ports_in_use.append(localport)
+                log.info(f"Opening SSH tunnel for {session['name']}")
+                log.info(f"  remote port = {port}, local port = {localport}")
                 server = sshtunnel.SSHTunnelForwarder(vncserver,
                                   ssh_username=args.account,
                                   ssh_password=password,
                                   remote_bind_address=('127.0.0.1', port),
-                                  local_bind_address=('0.0.0.0', port),
+                                  local_bind_address=('0.0.0.0', localport),
                                   )
                 ssh_threads.append(server)
                 try:
@@ -292,9 +297,13 @@ def main(args, config):
                     log.error('Failed to open tunnel')
                     log.error(e)
         if args.status is True:
-            statusport = [p for p in range(5901,5910,1)
-                          if p not in ports_in_use][0]
-            log.info(f"Opening SSH tunnel for k{tel}status on {statusport:d}")
+            if 'local_ports' in config.keys():
+                statusport = config['local_ports'].pop(0)
+            else:
+                statusport = [p for p in range(5901,5910,1)
+                              if p not in ports_in_use][0]
+            log.info(f"Opening SSH tunnel for k{tel}status")
+            log.info(f"  remote port = {port}, local port = {statusport}")
             server = sshtunnel.SSHTunnelForwarder(f"svncserver{tel}.keck.hawaii.edu",
                               ssh_username=args.account,
                               ssh_password=password,
@@ -326,7 +335,8 @@ def main(args, config):
             if session['name'] in sessions_to_open:
                 log.info(f"Opening VNCviewer for {session['name']}")
                 display = int(session['Display'][1:])
-                port = int(f"59{display:02d}")
+#                 port = int(f"59{display:02d}")
+                port = ports_in_use.pop(0)
                 vnc_threads.append(Thread(target=launch_vncviewer,
                                           args=(vncserver, port,)))
                 vnc_threads[-1].start()
@@ -426,5 +436,11 @@ if __name__ == '__main__':
         config['authenticate'] = True
     else:
         config['authenticate'] = False
+    if 'local_ports' in config.keys():
+        assert type(config['local_ports']) is list
+        nlp = len(config['local_ports'])
+        if nlp < 9:
+            log.warning(f"Only {nlp} local ports specified.")
+            log.warning(f"Program may crash if trying to open >{nlp} sessions")
 
     main(args, config)
