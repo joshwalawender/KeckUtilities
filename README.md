@@ -36,6 +36,14 @@ The configuration file contains the path to the VNC viewer executable on the loc
 
 If you wish to launch your VNCviewer application manually, put "None" in the configuration file for the `vncviewer` value.
 
+### Local Ports
+
+The program also allows you to configure which local ports to forward to.  If left unspecified, the ports will forward locally to the same port number as on the remote VNC server.  Specify the local ports to use in the configuration file using the `local_ports` setting a providing a list of port numbers.  For example:
+
+```
+local_ports: [5911, 5912, 5913, 5914, 5915, 5916, 5917, 5918, 5919]
+```
+
 ### Closing Sessions
 
 The program will stop after opening the VNC sessions with the query:
