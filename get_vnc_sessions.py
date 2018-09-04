@@ -9,8 +9,6 @@ import logging
 import yaml
 from getpass import getpass
 import paramiko
-# from sshtunnel import SSHTunnelForwarder
-import sshtunnel
 import subprocess
 from time import sleep
 from threading import Thread
@@ -434,6 +432,7 @@ if __name__ == '__main__':
        'firewall_user' in config.keys() and\
        'firewall_port' in config.keys():
         config['authenticate'] = True
+        import sshtunnel
     else:
         config['authenticate'] = False
     if 'local_ports' in config.keys():
