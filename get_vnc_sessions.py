@@ -193,10 +193,11 @@ def determine_VNCserver(accountname, password):
             stdin, stdout, stderr = client.exec_command('kvncinfo -server')
             rawoutput = stdout.read()
             vncserver = rawoutput.decode().strip('\n')
+            log.debug(f"  kvncinfo -server returned: '{vncserver}'")
         finally:
             client.close()
-            if vncserver is not None:
-                log.info(f"Got VNC server: {vncserver}")
+            if vncserver is not None and vncserver != '':
+                log.info(f"Got VNC server: '{vncserver}'")
                 break
     return f"{vncserver}.keck.hawaii.edu"
 
@@ -205,6 +206,7 @@ def determine_VNCserver(accountname, password):
 ## Determine VNC Sessions
 ##-------------------------------------------------------------------------
 def determine_VNC_sessions(accountname, password, vncserver):
+    print(f"{accountname} {vncserver}")
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
@@ -215,7 +217,8 @@ def determine_VNC_sessions(accountname, password, vncserver):
     except TimeoutError:
         log.info('  Timeout')
     except:
-        log.info('  Failed')
+        log.error('  Failed')
+        raise
     else:
         stdin, stdout, stderr = client.exec_command('kvncstatus')
         rawoutput = stdout.read()
