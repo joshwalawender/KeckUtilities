@@ -206,7 +206,6 @@ def determine_VNCserver(accountname, password):
 ## Determine VNC Sessions
 ##-------------------------------------------------------------------------
 def determine_VNC_sessions(accountname, password, vncserver):
-    print(f"{accountname} {vncserver}")
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
