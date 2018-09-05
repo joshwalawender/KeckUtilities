@@ -206,6 +206,7 @@ def determine_VNCserver(accountname, password):
 ## Determine VNC Sessions
 ##-------------------------------------------------------------------------
 def determine_VNC_sessions(accountname, password, vncserver):
+    log.info(f"Connecting to {vncserver} to get VNC sessions list")
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
@@ -228,6 +229,7 @@ def determine_VNC_sessions(accountname, password, vncserver):
         sessions.add_column(Column(data=names, name=('name')))
     finally:
         client.close()
+        log.info(f'  Got {len(sessions)} sessions')
         return sessions
 
 
