@@ -337,8 +337,11 @@ def main(args, config):
             if session['name'] in sessions_to_open:
                 log.info(f"Opening VNCviewer for {session['name']}")
                 display = int(session['Display'][1:])
-#                 port = int(f"59{display:02d}")
-                port = ports_in_use.pop(0)
+                if ports_in_use != []:
+                    port = ports_in_use.pop(0)
+                else:
+                    port = int(f"59{display:02d}")
+
                 vnc_threads.append(Thread(target=launch_vncviewer,
                                           args=(vncserver, port,)))
                 vnc_threads[-1].start()
