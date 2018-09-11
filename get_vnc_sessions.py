@@ -362,12 +362,14 @@ def main(args, config):
     ##-------------------------------------------------------------------------
     ## Wait for quit signal
     ##-------------------------------------------------------------------------
-    quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
-    foundq = re.match('^[qQ].*', quit)
-    while foundq is None:
+    if config['authenticate'] is True:
         sleep(1)
         quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
         foundq = re.match('^[qQ].*', quit)
+        while foundq is None:
+            sleep(1)
+            quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
+            foundq = re.match('^[qQ].*', quit)
     
     ##-------------------------------------------------------------------------
     ## Close down ssh tunnels and firewall authentication
