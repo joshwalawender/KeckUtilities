@@ -109,8 +109,8 @@ def get_telsched(from_date=None, ndays=None):
     keys = ['Date', 'InstrAcc', 'Instrument', 'Location', 'OA', 'Observers',
             'Principal', 'SA', 'TelNr', 'Twilight']
     telsched = Table(names=keys,
-                     dtype=('a10', 'a30', 'a30', 'a30', 'a30', 'a50',
-                            'a30', 'a30', 'i4', 'a200'))
+                     dtype=('a10', 'a30', 'a30', 'a30', 'a30', 'a100',
+                            'a50', 'a30', 'i4', 'a200'))
     for i,item in enumerate(telsched_xml.iter('item')):
         entry = {}
         for el in item:
