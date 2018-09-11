@@ -318,6 +318,12 @@ def main(args, config):
             except sshtunnel.HandlerSSHTunnelForwarderError as e:
                 log.error('Failed to open tunnel')
                 log.error(e)
+    elif args.status is True:
+        if 'local_ports' in config.keys():
+            statusport = config['local_ports'].pop(0)
+        else:
+            statusport = [p for p in range(5901,5910,1)
+                          if p not in ports_in_use][0]
 
 
     ##-------------------------------------------------------------------------
