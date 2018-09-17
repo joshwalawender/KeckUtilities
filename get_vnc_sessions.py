@@ -374,7 +374,10 @@ def main(args, config):
     if config['authenticate'] is True:
         for thread in ssh_threads:
             log.info(f'Closing SSH forwarding for {thread.local_bind_port}')
-            thread.stop()
+            try:
+                thread.stop()
+            except:
+                log.error('  Failed to close ssh tunnel')
         log.info('Signing off of firewall authentication')
         close_authentication(authpass)
 
