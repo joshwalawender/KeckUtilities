@@ -72,22 +72,39 @@ def main():
     right = np.array([(b%2 == 0) for b in bars])
 
     maxmileage = 0
+    maxmoves = 0
     for s in set(slits):
         ids = np.where(slits == s)
         slitmileage = np.sum(mileage[ids])
         maxmileage = max([maxmileage, slitmileage])
+        slitmoves = np.sum(nmoves[ids])
+        maxmoves = max([maxmoves, slitmoves])
 
     plt.ioff()
+
     plt.figure(figsize=(16,10))
+    plt.title('Bar Mileage')
     plt.bar(slits[left], mileage[left],
             width=0.9, align='center', color='b')
     plt.bar(slits[right], -mileage[right], bottom=maxmileage,
-            width=0.9, align='center', color='b', alpha=0.5)
+            width=0.9, align='center', color='g')
     plt.xlim(0,47)
-    plt.xlabel("Bar")
+    plt.xlabel("Slit Number")
     plt.ylabel("Mileage (m)")
     plt.grid()
     plt.savefig('CSU_Bar_Mileage.png')
+
+    plt.figure(figsize=(16,10))
+    plt.title('Number of Bar Moves')
+    plt.bar(slits[left], nmoves[left],
+            width=0.9, align='center', color='b')
+    plt.bar(slits[right], -nmoves[right], bottom=maxmoves,
+            width=0.9, align='center', color='g')
+    plt.xlim(0,47)
+    plt.xlabel("Slit Number")
+    plt.ylabel("N Moves")
+    plt.grid()
+    plt.savefig('CSU_Bar_Moves.png')
 
 
 if __name__ == '__main__':
