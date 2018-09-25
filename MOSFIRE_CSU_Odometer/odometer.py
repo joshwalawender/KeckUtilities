@@ -34,6 +34,8 @@ def main():
                 result = json.load(FO)
             odometers[log_file] = result['odometer']
             moves[log_file] = result['nmoves']
+            filedates[log_file] = [dt.strptime(result['dates'][0], '%Y-%m-%dT%H:%M:%S'),
+                                   dt.strptime(result['dates'][1], '%Y-%m-%dT%H:%M:%S')]
         else:
             nmoves = [0 for i in range(1,93)]
             mileage = [0 for i in range(1,93)]
@@ -112,7 +114,9 @@ def main():
                 moves[log_file] = nmoves
             
                 ## Save Result
-                result = {'odometer': mileage, 'nmoves': nmoves}
+                result = {'odometer': mileage, 'nmoves': nmoves,
+                          'dates': [file_start.isoformat(timespec='seconds'),
+                                    file_end.isoformat(timespec='seconds')]}
                 with open(os.path.join(log_path, 'odometer.json'), 'w') as FO:
                     json.dump(result, FO)
             except UnicodeDecodeError:
