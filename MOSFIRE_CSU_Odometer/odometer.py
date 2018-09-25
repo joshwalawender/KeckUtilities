@@ -59,7 +59,7 @@ def main():
                             file_start = date
                             ## Look for overlap
                             for i,fds in enumerate(filedates):
-                                if (file_start > fds[0]) and (file_start < fds[1]):
+                                if (file_start >= fds[0]) and (file_start <= fds[1]):
                                     print(f'WARNING:  Found Overlap with {log_files[i]}')
                                     print(file_start)
                                     print(filedates[i])
