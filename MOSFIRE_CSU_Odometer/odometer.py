@@ -20,9 +20,9 @@ def main():
     bars = [i for i in range(1,93)]
 
     log_files = sorted(glob('/h/instrlogs/mosfire/*/CSU.log*'))
-    log_files.append('/sdata1300/syslogs/CSU.log')
+    log_files.append('/s/sdata1300/syslogs/CSU.log')
     filedates = {}
-    
+
     odometers = {}
     moves = {}
     
@@ -32,13 +32,14 @@ def main():
             print(f"Loading results from {os.path.join(log_path, 'odometer.json')}")
             with open(os.path.join(log_path, 'odometer.json'), 'r') as FO:
                 result = json.load(FO)
-            odometers[log_file] = result['odometer']
-            moves[log_file] = result['nmoves']
+            odometers[log_file] = np.array(result['odometer'], dtype=np.float64)
+            moves[log_file] = np.array(result['nmoves'], dtype=np.int)
             filedates[log_file] = [dt.strptime(result['dates'][0], '%Y-%m-%dT%H:%M:%S'),
                                    dt.strptime(result['dates'][1], '%Y-%m-%dT%H:%M:%S')]
+            last_file = log_file
         else:
             nmoves = [0 for i in range(1,93)]
-            mileage = [0 for i in range(1,93)]
+            mileage = [0. for i in range(1,93)]
 
             month_decimal = 0
             year_iteration = 0
@@ -96,11 +97,12 @@ def main():
                 folder = os.path.split(os.path.split(log_file)[0])[1]
                 try:
                     folderdt = dt.strptime(folder, '%Y%m%d')
+                    year = folderdt.year
                 except ValueError:
                     year = dt.utcnow().year
 
-                file_end = dt.strptime(file_end.strftime(f'{folderdt.year} %m %d %H:%M:%S'), '%Y %m %d %H:%M:%S')
-                file_start = dt.strptime(file_start.strftime(f'{folderdt.year-year_iteration} %m %d %H:%M:%S'), '%Y %m %d %H:%M:%S')
+                file_end = dt.strptime(file_end.strftime(f'{year} %m %d %H:%M:%S'), '%Y %m %d %H:%M:%S')
+                file_start = dt.strptime(file_start.strftime(f'{year-year_iteration} %m %d %H:%M:%S'), '%Y %m %d %H:%M:%S')
 
                 timespan = file_end - file_start
                 filedates[log_file] = [file_start, file_end]
@@ -110,25 +112,27 @@ def main():
                 last_file = log_file
                 print(f'  File covers: {file_start} to {file_end} ({timespan})')
             
-                odometers[log_file] = mileage
-                moves[log_file] = nmoves
+                odometers[log_file] = np.array(mileage, dtype=np.float64)
+                moves[log_file] = np.array(nmoves, dtype=np.int)
             
                 ## Save Result
-                result = {'odometer': mileage, 'nmoves': nmoves,
-                          'dates': [file_start.isoformat(timespec='seconds'),
-                                    file_end.isoformat(timespec='seconds')]}
-                with open(os.path.join(log_path, 'odometer.json'), 'w') as FO:
-                    json.dump(result, FO)
+                if log_file != '/s/sdata1300/syslogs/CSU.log':
+                    result = {'odometer': mileage, 'nmoves': nmoves,
+                              'dates': [file_start.isoformat(timespec='seconds'),
+                                        file_end.isoformat(timespec='seconds')]}
+                    with open(os.path.join(log_path, 'odometer.json'), 'w') as FO:
+                        json.dump(result, FO)
             except UnicodeDecodeError:
                 print(f'  Unable to read {log_file}')
 
 
     ## Sum All log file results
-    nmoves = np.array([0 for i in range(1,93)])
-    mileage = np.array([0 for i in range(1,93)])
+    nmoves = np.array([0 for i in range(1,93)], dtype=np.int)
+    mileage = np.array([0 for i in range(1,93)], dtype=np.float64)
     for i,log_file in enumerate(log_files):
-        nmoves += np.array(moves[log_file])
-        mileage += np.array(odometers[log_file])
+        if log_file in odometers.keys():
+            nmoves += np.array(moves[log_file])
+            mileage += np.array(odometers[log_file])
 
     bars = np.array(bars)
     mileage /= 1000
