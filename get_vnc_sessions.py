@@ -251,6 +251,21 @@ def main(args, config):
         log.info('Authenticating through firewall')
         authenticate(authpass)
 
+    if args.authonly is True:
+        ## Wait for quit signal
+        if config['authenticate'] is True:
+            sleep(1)
+            quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
+            foundq = re.match('^[qQ].*', quit)
+            while foundq is None:
+                sleep(1)
+                quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
+                foundq = re.match('^[qQ].*', quit)
+        ## Close down ssh tunnels and firewall authentication
+        if config['authenticate'] is True:
+            log.info('Signing off of firewall authentication')
+            close_authentication(authpass)
+        sys.exit(0)
 
     ##-------------------------------------------------------------------------
     ## Determine instrument
@@ -399,6 +414,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
              description="Get VNC sessions.")
     ## add flags
+    parser.add_argument("--authonly", dest="authonly",
+        default=False, action="store_true",
+        help="Authenticate through firewall only?")
     parser.add_argument("--control0", dest="control0",
         default=True, action="store_true",
         help="Open control0?")
