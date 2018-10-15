@@ -224,12 +224,18 @@ def determine_VNC_sessions(accountname, password, vncserver):
         rawoutput = stdout.read()
         output = rawoutput.decode().strip('\n')
         allsessions = Table.read(output.split('\n'), format='ascii')
-        sessions = allsessions[allsessions['User'] == accountname]
-        names = [x['Desktop'].split('-')[2] for x in sessions]
-        sessions.add_column(Column(data=names, name=('name')))
+        log.debug(f'  Got {len(allsessions)} sessions for all users')
+        if len(allsessions) == 0:
+            log.warning(f'Found 0 sessions on {vncserver}')
+            client.close()
+            sessions = []
+        else:
+            sessions = allsessions[allsessions['User'] == accountname]
+            log.info(f'  Got {len(sessions)} sessions')
+            names = [x['Desktop'].split('-')[2] for x in sessions]
+            sessions.add_column(Column(data=names, name=('name')))
     finally:
         client.close()
-        log.info(f'  Got {len(sessions)} sessions')
         return sessions
 
 
@@ -265,6 +271,9 @@ def main(args, config):
     sessions = determine_VNC_sessions(args.account, password, vncserver)
     if len(sessions) == 0:
         log.info('No VNC sessions found')
+        if config['authenticate'] is True:
+            log.info('Signing off of firewall authentication')
+            close_authentication(authpass)
         return
 
     print(sessions)
