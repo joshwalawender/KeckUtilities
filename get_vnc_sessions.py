@@ -224,12 +224,18 @@ def determine_VNC_sessions(accountname, password, vncserver):
         rawoutput = stdout.read()
         output = rawoutput.decode().strip('\n')
         allsessions = Table.read(output.split('\n'), format='ascii')
-        sessions = allsessions[allsessions['User'] == accountname]
-        names = [x['Desktop'].split('-')[2] for x in sessions]
-        sessions.add_column(Column(data=names, name=('name')))
+        log.debug(f'  Got {len(allsessions)} sessions for all users')
+        if len(allsessions) == 0:
+            log.warning(f'Found 0 sessions on {vncserver}')
+            client.close()
+            sessions = []
+        else:
+            sessions = allsessions[allsessions['User'] == accountname]
+            log.info(f'  Got {len(sessions)} sessions')
+            names = [x['Desktop'].split('-')[2] for x in sessions]
+            sessions.add_column(Column(data=names, name=('name')))
     finally:
         client.close()
-        log.info(f'  Got {len(sessions)} sessions')
         return sessions
 
 
@@ -245,6 +251,21 @@ def main(args, config):
         log.info('Authenticating through firewall')
         authenticate(authpass)
 
+    if args.authonly is True:
+        ## Wait for quit signal
+        if config['authenticate'] is True:
+            sleep(1)
+            quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
+            foundq = re.match('^[qQ].*', quit)
+            while foundq is None:
+                sleep(1)
+                quit = input('Hit q to close down any SSH tunnels and firewall auth: ')
+                foundq = re.match('^[qQ].*', quit)
+        ## Close down ssh tunnels and firewall authentication
+        if config['authenticate'] is True:
+            log.info('Signing off of firewall authentication')
+            close_authentication(authpass)
+        sys.exit(0)
 
     ##-------------------------------------------------------------------------
     ## Determine instrument
@@ -265,6 +286,9 @@ def main(args, config):
     sessions = determine_VNC_sessions(args.account, password, vncserver)
     if len(sessions) == 0:
         log.info('No VNC sessions found')
+        if config['authenticate'] is True:
+            log.info('Signing off of firewall authentication')
+            close_authentication(authpass)
         return
 
     print(sessions)
@@ -390,6 +414,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
              description="Get VNC sessions.")
     ## add flags
+    parser.add_argument("--authonly", dest="authonly",
+        default=False, action="store_true",
+        help="Authenticate through firewall only?")
     parser.add_argument("--control0", dest="control0",
         default=True, action="store_true",
         help="Open control0?")
