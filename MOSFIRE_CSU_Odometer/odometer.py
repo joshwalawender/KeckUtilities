@@ -152,28 +152,28 @@ def main():
     plt.ioff()
 
     plt.figure(figsize=(16,10))
-    plt.title('Bar Mileage')
+    plt.title('CSU Bar Mileage', fontsize=18)
     plt.bar(slits[left], mileage[left],
             width=0.9, align='center', color='b')
     plt.bar(slits[right], -mileage[right], bottom=maxmileage,
             width=0.9, align='center', color='g')
     plt.xlim(0,47)
-    plt.xlabel("Slit Number")
-    plt.ylabel("Mileage (m)")
+    plt.xlabel("Slit Number", fontsize=18)
+    plt.ylabel("Mileage (m)", fontsize=18)
     plt.grid()
-    plt.savefig('CSU_Bar_Mileage.png')
+    plt.savefig('CSU_Bar_Mileage.png', bbox_inches='tight', pad_inches=0.10)
 
     plt.figure(figsize=(16,10))
-    plt.title('Number of Bar Moves')
+    plt.title('Number of CSU Bar Moves', fontsize=18)
     plt.bar(slits[left], nmoves[left],
             width=0.9, align='center', color='b')
     plt.bar(slits[right], -nmoves[right], bottom=maxmoves,
             width=0.9, align='center', color='g')
     plt.xlim(0,47)
-    plt.xlabel("Slit Number")
-    plt.ylabel("N Moves")
+    plt.xlabel("Slit Number", fontsize=18)
+    plt.ylabel("N Moves", fontsize=18)
     plt.grid()
-    plt.savefig('CSU_Bar_Moves.png')
+    plt.savefig('CSU_Bar_Moves.png', bbox_inches='tight', pad_inches=0.10)
 
 
 if __name__ == '__main__':
