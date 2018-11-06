@@ -28,15 +28,15 @@ args = p.parse_args()
 ##-------------------------------------------------------------------------
 def main():
     h = args.elevation * u.degree # elevation of target above horizon
-    magnitudes_per_airmass = args.extinction * u.mag
+    mpa = args.extinction * u.mag
 
     # Pickering 2002 Airmass
     value = h.value + 244/(165.0 + 47.0*h.value**1.1)
     airmass = 1.0 / np.sin(value*u.degree)
-    print(f'for EL = {h:.1f}')
+    print(f'For EL = {h:.1f} with extinction of {mpa:.2f} per airmass')
     print(f'airmass = {airmass:.2f}')
 
-    extinction = airmass * magnitudes_per_airmass
+    extinction = airmass * mpa
     print(f'extinction = {extinction:.2f}')
 
 
