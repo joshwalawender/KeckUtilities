@@ -42,6 +42,7 @@ def main():
                  2017.0: ('2017-02-01', '2017-07-31'),
                  2017.5: ('2017-08-01', '2018-01-31'),
                  2018.0: ('2018-02-01', '2018-07-31'),
+                 2018.5: ('2018-08-01', '2019-01-31'),
                 }
 
 #     table_file = 'MainlandObserving.csv'
@@ -149,10 +150,11 @@ def main():
             width=0.4, color='b', alpha=0.3, label='Eavesdrop')
     plt.ylim(0,300)
     plt.xticks(np.arange(2006, 2034), ["{:02d}".format(x-2000) for x in np.arange(2006, 2034)])
-    plt.xlim(2006, 2018)
+    plt.xlim(2006, 2018.5)
     plt.grid(axis='x')
     plt.xlabel('Semester')
     plt.ylabel('Nights')
+
     plt.legend(loc='best')
     
     ax2 = ax1.twinx()
