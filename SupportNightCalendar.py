@@ -109,8 +109,8 @@ def get_telsched(from_date=None, ndays=None):
     keys = ['Date', 'InstrAcc', 'Instrument', 'Location', 'OA', 'Observers',
             'Principal', 'SA', 'TelNr', 'Twilight']
     telsched = Table(names=keys,
-                     dtype=('a10', 'a30', 'a30', 'a30', 'a30', 'a50',
-                            'a30', 'a30', 'i4', 'a200'))
+                     dtype=('a10', 'a30', 'a30', 'a30', 'a30', 'a100',
+                            'a50', 'a30', 'i4', 'a200'))
     for i,item in enumerate(telsched_xml.iter('item')):
         entry = {}
         for el in item:
@@ -166,24 +166,24 @@ def determine_type(entry, telsched, args):
     ysched = telsched[telsched['Date'] == yesterday]
     yentry = ysched[ysched['TelNr'] == entry['TelNr']]
     if len(yentry) == 0:
-        type = 'Support'
+        supporttype = 'Support'
     elif len(yentry) == 1:
         SAmatch = re.search(args.sa.lower(), yentry['SA'][0].lower())
         PImatch = entry['Principal'] == yentry['Principal'][0]
         instmatch = entry['Instrument'] == yentry['Instrument'][0]
         if SAmatch and PImatch and instmatch:
-            type = 'On Call'
+            supporttype = 'On Call'
         else:
-            type = 'Support'
+            supporttype = 'Support'
     else:
         print('Multiple entries for yesterday')
-        type = 'Support'
+        supporttype = 'Support'
 
     split = entry['Principal'].split('/')
     if len(split) > 1:
-        type = f"{type}, Split Night ({len(split)}x)"
+        supporttype = f"{supporttype}, Split Night ({len(split)}x)"
 
-    return type
+    return supporttype
 
 
 ##-------------------------------------------------------------------------
@@ -257,14 +257,21 @@ def main():
     ## Create Output iCal File
     ##-------------------------------------------------------------------------
     ical_file = ICSFile('Nights.ics')
-
+    month_night_count = {}
+    month_nights = {1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30,
+                    7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
     night_count = 0
     for entry in telsched:
         found = re.search(args.sa.lower(), entry['SA'].lower())
-        if found:
+        if found is not None:
             night_count += 1
-            type = determine_type(entry, telsched, args)
-            title = '{} {} ({})'.format(entry['Instrument'], type, entry['Location'])
+            month = entry['Date'][:7]
+            if month in month_night_count.keys():
+                month_night_count[month] += 1
+            else:
+                month_night_count[month] = 1
+            supporttype = determine_type(entry, telsched, args)
+            title = '{} {} ({})'.format(entry['Instrument'], supporttype, entry['Location'])
             twilight = parse_twilight(entry)
             calend = '{}T{}'.format(entry['Date'].replace('-', ''), '230000')
             description = [title,
@@ -282,6 +289,11 @@ def main():
                                 calend, description)
     ical_file.write()
     print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
+
+    for month in month_night_count:
+        nsupport = month_night_count[month]
+        nnights = month_nights[int(month[-2:])]
+        print(f"  For {month}: {nsupport:2d} / {nnights:2d} nights ({100*nsupport/nnights:4.1f} %)")
 
 
 if __name__ == '__main__':
