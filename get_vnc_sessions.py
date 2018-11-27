@@ -4,6 +4,7 @@
 import sys
 import os
 import re
+import socket
 import argparse
 import logging
 import yaml
@@ -491,5 +492,9 @@ if __name__ == '__main__':
         if nlp < 9:
             log.warning(f"Only {nlp} local ports specified.")
             log.warning(f"Program may crash if trying to open >{nlp} sessions")
+
+    log.info(f'System Info: {os.uname()}')
+    log.info(f'System hostname: {socket.gethostname()}')
+    log.info(f'System IP Address: {socket.gethostbyname(hostname)}')
 
     main(args, config)
