@@ -4,6 +4,7 @@
 import sys
 import os
 import re
+import socket
 import argparse
 import logging
 import yaml
@@ -428,13 +429,13 @@ if __name__ == '__main__':
         default=False, action="store_true",
         help="Authenticate through firewall only?")
     parser.add_argument("--control0", dest="control0",
-        default=True, action="store_true",
+        default=False, action="store_true",
         help="Open control0?")
     parser.add_argument("--control1", dest="control1",
-        default=True, action="store_true",
+        default=False, action="store_true",
         help="Open control1?")
     parser.add_argument("--control2", dest="control2",
-        default=True, action="store_true",
+        default=False, action="store_true",
         help="Open control2?")
     parser.add_argument("--telstatus", dest="telstatus",
         default=False, action="store_true",
@@ -479,6 +480,12 @@ if __name__ == '__main__':
     if args.status is True:
         sessions_to_open.append('status')
 
+    if len(sessions_to_open) == 0:
+        sessions_to_open.append('control0')
+        sessions_to_open.append('control1')
+        sessions_to_open.append('control2')
+        sessions_to_open.append('telstatus')
+
     config = get_config()
     if 'firewall_address' in config.keys() and\
        'firewall_user' in config.keys() and\
@@ -493,5 +500,9 @@ if __name__ == '__main__':
         if nlp < 9:
             log.warning(f"Only {nlp} local ports specified.")
             log.warning(f"Program may crash if trying to open >{nlp} sessions")
+
+    log.info(f'System Info: {os.uname()}')
+    log.info(f'System hostname: {socket.gethostname()}')
+    log.info(f'System IP Address: {socket.gethostbyname(hostname)}')
 
     main(args, config)
