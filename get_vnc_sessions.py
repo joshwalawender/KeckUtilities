@@ -70,7 +70,9 @@ def open_ssh_tunnel(server, username, password, remote_port, local_port):
 ##-------------------------------------------------------------------------
 def launch_vncviewer(vncserver, port, pw=None):
     config = get_config()
-    cmd = [config['vncviewer'], f'{vncserver}:{port:4d}']
+    vncviewercmd = config.get('vncviewer', 'vncviewer')
+    vncprefix = config.get('vncprefix', '')
+    cmd = [vncviewercmd, f'{vncprefix}{vncserver}:{port:4d}']
     log.info(f"  Launching VNC viewer for {cmd[-1]}")
     vncviewer = subprocess.call(cmd)
 
