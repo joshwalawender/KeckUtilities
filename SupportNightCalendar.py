@@ -261,6 +261,7 @@ def main():
     month_nights = {1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30,
                     7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
     night_count = 0
+    split_night_count = 0
     for entry in telsched:
         found = re.search(args.sa.lower(), entry['SA'].lower())
         if found is not None:
@@ -271,6 +272,8 @@ def main():
             else:
                 month_night_count[month] = 1
             supporttype = determine_type(entry, telsched, args)
+            if supporttype.find('Split Night') > 0:
+                split_night_count += 1
             title = '{} {} ({})'.format(entry['Instrument'], supporttype, entry['Location'])
             twilight = parse_twilight(entry)
             calend = '{}T{}'.format(entry['Date'].replace('-', ''), '230000')
@@ -289,6 +292,7 @@ def main():
                                 calend, description)
     ical_file.write()
     print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
+    print(f"Found {split_night_count:d} split nights")
 
     for month in month_night_count:
         nsupport = month_night_count[month]
