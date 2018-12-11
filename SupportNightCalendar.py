@@ -3,22 +3,13 @@
 ## Import General Tools
 import sys
 import os
-import argparse
+from gooey import Gooey, GooeyParser
 import requests
+import json
+import re
 from datetime import datetime as dt
 from datetime import timedelta as tdelta
-import re
-import xml.etree.ElementTree as ET
-
-from astropy.table import Table
-
-from gooey import Gooey, GooeyParser
-
-class ParseError(Exception):
-    def __init__(self, value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
+from astropy.table import Table, Column
 
 
 ##-------------------------------------------------------------------------
@@ -78,112 +69,42 @@ class ICSFile(object):
 ##-------------------------------------------------------------------------
 ## Get Telescope Schedule
 ##-------------------------------------------------------------------------
+def querydb(req):
+    url = f"https://www.keck.hawaii.edu/software/db_api/telSchedule.php?{req}"
+    r = requests.get(url)
+    return json.loads(r.text)
+
+
+def get_SA(date=None, tel=1):
+    if date is None:
+        return None
+    req = f"cmd=getNightStaff&date={date}&type=sa&telnr={tel}"
+    try:
+        sa = querydb(req)[0]['Alias']
+    except:
+        sa= ''
+    return sa
+
+
 def get_telsched(from_date=None, ndays=None):
-    # Set from date
     if from_date is None:
         now = dt.now()
         from_date = now.strftime('%Y-%m-%d')
     else:
         assert dt.strptime(from_date, '%Y-%m-%d')
-    from_dto = dt.strptime(from_date, '%Y-%m-%d')
-    from_string = from_dto.strftime('%Y-%m-%d HST')
-    # Set to date
-    if ndays is None:
-        if from_dto.month == 1:
-            to_dto = dt(from_dto.year, 2, 1)
-        elif from_dto.month < 7:
-            to_dto = dt(from_dto.year, 8, 1)
-        elif from_dto.month <= 12:
-            to_dto = dt(from_dto.year+1, 2, 1)
-    else:
-        to_dto = from_dto + tdelta(ndays)
-    to_string = to_dto.strftime('%Y-%m-%d HST')
-    ndays = (to_dto - from_dto).days + 1
-    print(f'Getting telescope schedule from {from_string} to {to_string} ({ndays} days)')
 
-    address = f'http://www/observing/schedule/ws/telsched.php'\
-              f'?date={from_date}&ndays={ndays:d}&field=all&verbosity=-1'
-    r = requests.get(address)
-
-    telsched_xml = ET.fromstring(r.text)
-    keys = ['Date', 'InstrAcc', 'Instrument', 'Location', 'OA', 'Observers',
-            'Principal', 'SA', 'TelNr', 'Twilight']
-    telsched = Table(names=keys,
-                     dtype=('a10', 'a30', 'a30', 'a30', 'a30', 'a100',
-                            'a50', 'a30', 'i4', 'a200'))
-    for i,item in enumerate(telsched_xml.iter('item')):
-        entry = {}
-        for el in item:
-            if el.tag in keys:
-                entry[el.tag] = el.text
-        telsched.add_row(entry)
+    req = f"cmd=getSchedule&date={from_date}"
+    if ndays is not None:
+        req += f"&numdays={ndays}"
+    telsched = Table(data=querydb(req))
+    telsched = add_SA_to_telsched(telsched)
     return telsched
 
 
-def parse_twilight(entry):
-    twistring = entry['Twilight']
-    datestr = entry['Date']
-    twilist = twistring.strip('{').strip('}').split(',')
-    twilight = {}
-    for x in twilist:
-        match = re.match("^(\w+)\:'([\w:\-]+)'", x)
-        if match:
-            if match.group(1) == 'sunset':
-                str = '{} {}'.format(entry['Date'], match.group(2))
-                twilight['sunset'] = dt.strptime(str, '%Y-%m-%d %H:%M:%S') +\
-                                     tdelta(1, -10*60*60)
-                twilight['sunsetstr'] = twilight['sunset'].strftime('%H:%M')
-            if match.group(1) == 'sunrise':
-                str = '{} {}'.format(entry['Date'], match.group(2))
-                twilight['sunrise'] = dt.strptime(str, '%Y-%m-%d %H:%M:%S') +\
-                                     tdelta(1, -10*60*60)
-                twilight['sunrisestr'] = twilight['sunrise'].strftime('%H:%M')
-            if match.group(1) == 'dusk_12deg':
-                str = '{} {}'.format(entry['Date'], match.group(2))
-                twilight['dusk_12deg'] = dt.strptime(str, '%Y-%m-%d %H:%M:%S') +\
-                                     tdelta(1, -10*60*60)
-                twilight['dusk_12degstr'] = twilight['dusk_12deg'].strftime('%H:%M')
-            if match.group(1) == 'dawn_12deg':
-                str = '{} {}'.format(entry['Date'], match.group(2))
-                twilight['dawn_12deg'] = dt.strptime(str, '%Y-%m-%d %H:%M:%S') +\
-                                     tdelta(1, -10*60*60)
-                twilight['dawn_12degstr'] = twilight['dawn_12deg'].strftime('%H:%M')
-
-
-    return twilight
-
-##-------------------------------------------------------------------------
-## Check On Call
-##-------------------------------------------------------------------------
-def determine_type(entry, telsched, args):
-    '''
-    Given an entry (a single row of a telsched table), check to see if the
-    previous night on the same telescope has the same PI string.  If so, the
-    night is "On Call" instead of "Support".
-    '''
-    date = dt.strptime(entry['Date'], '%Y-%m-%d')
-    yesterday = (date-tdelta(1)).strftime('%Y-%m-%d')
-    ysched = telsched[telsched['Date'] == yesterday]
-    yentry = ysched[ysched['TelNr'] == entry['TelNr']]
-    if len(yentry) == 0:
-        supporttype = 'Support'
-    elif len(yentry) == 1:
-        SAmatch = re.search(args.sa.lower(), yentry['SA'][0].lower())
-        PImatch = entry['Principal'] == yentry['Principal'][0]
-        instmatch = entry['Instrument'] == yentry['Instrument'][0]
-        if SAmatch and PImatch and instmatch:
-            supporttype = 'On Call'
-        else:
-            supporttype = 'Support'
-    else:
-        print('Multiple entries for yesterday')
-        supporttype = 'Support'
-
-    split = entry['Principal'].split('/')
-    if len(split) > 1:
-        supporttype = f"{supporttype}, Split Night ({len(split)}x)"
-
-    return supporttype
+def add_SA_to_telsched(telsched):
+    sas = [get_SA(date=x['Date'], tel=x['TelNr']) for x in telsched]
+    telsched.add_column(Column(sas, name='SA'))
+    return telsched
 
 
 ##-------------------------------------------------------------------------
@@ -198,9 +119,13 @@ def main():
     parser = GooeyParser(
              description="Generates ICS file of support nights from telescope DB.")
     ## add arguments
+#     parser.add_argument('-s', '--sa',
+#         type=str, dest="sa", default='jwalawender',
+#         help='SA name. Use enough to make a search unique for the "Alias".')
     parser.add_argument('-s', '--sa',
-        type=str, dest="sa", default='Josh',
-        help="SA name. Use enough to make a search unique.")
+        type=str, dest="sa", help='SA alias.', widget='Dropdown',
+        choices=['jwalawender', 'arettura', 'calvarez', 'gdoppmann', 'jlyke',
+                 'lrizzi', 'pgomez', 'randyc', 'syeh'])
     parser.add_argument('--sem', '--semester',
         type=str, dest="semester",
         help="Semester (e.g. '18B')")
@@ -250,8 +175,9 @@ def main():
 
     from_date = from_dto.strftime('%Y-%m-%d')
     telsched = get_telsched(from_date=from_date, ndays=ndays)
-    ndays = int(len(telsched)/2)
-
+    dates = sorted(set(telsched['Date']))
+    ndays = len(dates)
+    print(f"Retrieved schedule for {dates[0]} to {dates[-1]} ({ndays} days)")
 
     ##-------------------------------------------------------------------------
     ## Create Output iCal File
@@ -260,44 +186,98 @@ def main():
     month_night_count = {}
     month_nights = {1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30,
                     7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
-    night_count = 0
+    dual_support_count = 0
     split_night_count = 0
-    for entry in telsched:
-        found = re.search(args.sa.lower(), entry['SA'].lower())
-        if found is not None:
-            night_count += 1
-            month = entry['Date'][:7]
-            if month in month_night_count.keys():
-                month_night_count[month] += 1
-            else:
-                month_night_count[month] = 1
-            supporttype = determine_type(entry, telsched, args)
-            if supporttype.find('Split Night') > 0:
+
+    sasched = telsched[telsched['SA'] == args.sa.lower()]
+    night_count = len(set(sasched['Date']))
+
+    for date in set(sasched['Date']):
+        progs = sasched[sasched['Date'] == date]
+        progsbytel = progs.group_by('TelNr')
+
+        if len(progsbytel.groups) > 1:
+            dual_support_count += 1
+
+        month = date[:7]
+        if month in month_night_count.keys():
+            month_night_count[month] += 1
+        else:
+            month_night_count[month] = 1
+
+        # Loop over both telNr if needed
+        for idx in range(len(progsbytel.groups)):
+            supporttype = 'Support'
+            if len(progsbytel.groups[idx]) > 1:
+                supporttype = 'Split Night'
                 split_night_count += 1
-            title = '{} {} ({})'.format(entry['Instrument'], supporttype, entry['Location'])
-            twilight = parse_twilight(entry)
-            calend = '{}T{}'.format(entry['Date'].replace('-', ''), '230000')
-            description = [title,
-                           f"Sunset @ {twilight['sunsetstr']}",
-                           f"12 deg Twilight @ {twilight['dusk_12degstr']}",
-                           f"12 deg Twilight @ {twilight['dawn_12degstr']}",
-                           f"Sunrise @ {twilight['sunrisestr']}",
-                           f"PI: {entry['Principal']}",
-                           f"Observers: {entry['Observers']}",
-                           f"Location: {entry['Location']}",
-                           f"Account: {entry['InstrAcc']}",
-                           ]
-            print(f"{entry['Date']:10s} K{entry['TelNr']:d} {title:s}")
-            ical_file.add_event(title, twilight['sunset'].strftime('%Y%m%dT%H%M%S'),
-                                calend, description)
+
+            instruments = list(progsbytel.groups[idx]['Instrument'])
+            loc = '?'
+            title = f"{'/'.join(instruments)} {supporttype} ({loc})"
+            calstart = f"{date.replace('-', '')}T170000"
+            calend = f"{date.replace('-', '')}T230000"
+            description = [title]
+            for entry in progsbytel.groups[idx]:
+                description.append('')
+                description.append(f"Start Time: {entry['StartTime']}")
+                description.append(f"PI: {entry['Principal']}")
+                description.append(f"Observers: {entry['Observers']}")
+#                 description.append(f"Location: {entry['Location']}")
+                description.append(f"Account: {entry['Account']}")
+
+            ical_file.add_event(title, calstart, calend, description)
+
     ical_file.write()
     print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
     print(f"Found {split_night_count:d} split nights")
 
-    for month in month_night_count:
+    for month in sorted(month_night_count.keys()):
         nsupport = month_night_count[month]
         nnights = month_nights[int(month[-2:])]
         print(f"  For {month}: {nsupport:2d} / {nnights:2d} nights ({100*nsupport/nnights:4.1f} %)")
+
+
+
+
+
+
+#     for entry in telsched:
+#         found = re.search(args.sa.lower(), entry['SA'].lower())
+#         if found is not None:
+#             night_count += 1
+#             month = entry['Date'][:7]
+#             if month in month_night_count.keys():
+#                 month_night_count[month] += 1
+#             else:
+#                 month_night_count[month] = 1
+#             supporttype = determine_type(entry, telsched, args)
+#             if supporttype.find('Split Night') > 0:
+#                 split_night_count += 1
+#             title = '{} {} ({})'.format(entry['Instrument'], supporttype, entry['Location'])
+#             twilight = parse_twilight(entry)
+#             calend = '{}T{}'.format(entry['Date'].replace('-', ''), '230000')
+#             description = [title,
+#                            f"Sunset @ {twilight['sunsetstr']}",
+#                            f"12 deg Twilight @ {twilight['dusk_12degstr']}",
+#                            f"12 deg Twilight @ {twilight['dawn_12degstr']}",
+#                            f"Sunrise @ {twilight['sunrisestr']}",
+#                            f"PI: {entry['Principal']}",
+#                            f"Observers: {entry['Observers']}",
+#                            f"Location: {entry['Location']}",
+#                            f"Account: {entry['InstrAcc']}",
+#                            ]
+#             print(f"{entry['Date']:10s} K{entry['TelNr']:d} {title:s}")
+#             ical_file.add_event(title, twilight['sunset'].strftime('%Y%m%dT%H%M%S'),
+#                                 calend, description)
+#     ical_file.write()
+#     print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
+#     print(f"Found {split_night_count:d} split nights")
+# 
+#     for month in month_night_count:
+#         nsupport = month_night_count[month]
+#         nnights = month_nights[int(month[-2:])]
+#         print(f"  For {month}: {nsupport:2d} / {nnights:2d} nights ({100*nsupport/nnights:4.1f} %)")
 
 
 if __name__ == '__main__':
