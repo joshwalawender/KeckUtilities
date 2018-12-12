@@ -10,6 +10,9 @@ import re
 from datetime import datetime as dt
 from datetime import timedelta as tdelta
 from astropy.table import Table, Column
+from astropy.time import Time
+from astropy.coordinates import EarthLocation
+from astroplan import Observer
 
 
 ##-------------------------------------------------------------------------
@@ -67,6 +70,36 @@ class ICSFile(object):
 
 
 ##-------------------------------------------------------------------------
+## Get Twilight Info for Date
+##-------------------------------------------------------------------------
+def get_twilights(date):
+    """ Determine sunrise and sunset times """
+    location = EarthLocation(
+        lat=19+49/60+33.40757/60**2,
+        lon=-(155+28/60+28.98665/60**2),
+        height=4159.58,
+    )
+    obs = Observer(location=location, name='Keck', timezone='US/Hawaii')
+    date = Time(dt.strptime(f'{date} 14:00:00', '%Y-%m-%d %H:%M:%S'))
+
+    t = {}
+    t['seto'] = obs.sun_set_time(date, which='next').datetime
+    t['ento'] = obs.twilight_evening_nautical(date, which='next').datetime
+    t['eato'] = obs.twilight_evening_astronomical(date, which='next').datetime
+    t['mato'] = obs.twilight_morning_astronomical(date, which='next').datetime
+    t['mnto'] = obs.twilight_morning_nautical(date, which='next').datetime
+    t['riseo'] = obs.sun_rise_time(date, which='next').datetime
+    t['set'] = t['seto'].strftime('%H:%M UT')
+    t['ent'] = t['ento'].strftime('%H:%M UT')
+    t['eat'] = t['eato'].strftime('%H:%M UT')
+    t['mat'] = t['mato'].strftime('%H:%M UT')
+    t['mnt'] = t['mnto'].strftime('%H:%M UT')
+    t['rise'] = t['riseo'].strftime('%H:%M UT')
+
+    return t
+
+
+##-------------------------------------------------------------------------
 ## Get Telescope Schedule
 ##-------------------------------------------------------------------------
 def querydb(req):
@@ -97,7 +130,7 @@ def get_telsched(from_date=None, ndays=None):
     if ndays is not None:
         req += f"&numdays={ndays}"
     telsched = Table(data=querydb(req))
-    telsched = add_SA_to_telsched(telsched)
+    telsched.sort(keys=['Date', 'TelNr'])
     return telsched
 
 
@@ -173,11 +206,15 @@ def main():
         except:
             pass
 
+    print('Retrieving telescope schedule')
     from_date = from_dto.strftime('%Y-%m-%d')
     telsched = get_telsched(from_date=from_date, ndays=ndays)
     dates = sorted(set(telsched['Date']))
     ndays = len(dates)
     print(f"Retrieved schedule for {dates[0]} to {dates[-1]} ({ndays} days)")
+    print(f"Retrieving SA schedule")
+    telsched = add_SA_to_telsched(telsched)
+    print('Done')
 
     ##-------------------------------------------------------------------------
     ## Create Output iCal File
@@ -192,18 +229,22 @@ def main():
     sasched = telsched[telsched['SA'] == args.sa.lower()]
     night_count = len(set(sasched['Date']))
 
-    for date in set(sasched['Date']):
+    print('Building calendar')
+    for date in sorted(set(sasched['Date'])):
         progs = sasched[sasched['Date'] == date]
         progsbytel = progs.group_by('TelNr')
 
         if len(progsbytel.groups) > 1:
             dual_support_count += 1
 
+        print(f"  Creating calendar entry for {date}")
         month = date[:7]
         if month in month_night_count.keys():
             month_night_count[month] += 1
         else:
             month_night_count[month] = 1
+
+        twilights = get_twilights(date)
 
         # Loop over both telNr if needed
         for idx in range(len(progsbytel.groups)):
@@ -213,18 +254,30 @@ def main():
                 split_night_count += 1
 
             instruments = list(progsbytel.groups[idx]['Instrument'])
-            loc = '?'
-            title = f"{'/'.join(instruments)} {supporttype} ({loc})"
-            calstart = f"{date.replace('-', '')}T170000"
+            if len(set(instruments)) == 1:
+                title = f"{instruments[0]} {supporttype}"
+            else:
+                title = f"{'/'.join(instruments)} {supporttype}"
+            calstart = (twilights['seto']-tdelta(0,10*60*60)).strftime('%Y%m%dT%H%M00')
             calend = f"{date.replace('-', '')}T230000"
-            description = [title]
+            description = [title,
+                           f"Sunset: {twilights['set']}",
+                           f"12deg:  {twilights['ent']}",
+                           ]
             for entry in progsbytel.groups[idx]:
+                obslist = entry['Observers'].split(',')
+                loclist = entry['Location'].split(',')
+                assert len(obslist) == len(loclist)
+                observers = [f"{obs}({loclist[i]})" for i,obs in enumerate(obslist)]
                 description.append('')
-                description.append(f"Start Time: {entry['StartTime']}")
+                description.append(f"Instrument: {entry['Instrument']} ({entry['Account']})")
                 description.append(f"PI: {entry['Principal']}")
-                description.append(f"Observers: {entry['Observers']}")
-#                 description.append(f"Location: {entry['Location']}")
-                description.append(f"Account: {entry['Account']}")
+                description.append(f"Observers: {', '.join(observers)}")
+                description.append(f"Start Time: {entry['StartTime']}")
+
+            description.append('')
+            description.append(f"12deg:  {twilights['mnt']}")
+            description.append(f"Sunrise: {twilights['rise']}")
 
             ical_file.add_event(title, calstart, calend, description)
 
