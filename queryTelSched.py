@@ -7,6 +7,12 @@ Purpose:
     Query the telescope database and return the value of `field` for the given
     `date` and `tel`.  Try to replicate functionality of the old queryTelSched
     which was located at: ~kics/instr/bin/queryTelSched (on a summit machine).
+    
+    This program tries to be backward compatible with the old telescope
+    schedule database and programs which called it.  Some field names have
+    changed with the new database, so a translation step is included in the
+    queryTelSched function below.  To add additional translations, just add to
+    the translations dictionary
 
 Example Use:
     python queryTelSched.py 2018-12-18 1 Instrument
@@ -105,7 +111,7 @@ def queryTelSched(date, tel, field):
     result = get_schedule(date, tel)
     log.debug(f"Found {len(result)} programs")
 
-    translations = {'InstrAcc': 'Instrument',
+    translations = {'InstrAcc': 'Account',
                    }
 
     output_list = []
