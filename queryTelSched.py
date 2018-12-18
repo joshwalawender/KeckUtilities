@@ -115,7 +115,10 @@ def queryTelSched(date, tel, field):
                    }
 
     output_list = []
-    for entry in result:
+    for i,entry in enumerate(sorted(result, key=lambda x: x['StartTime'])):
+        log.debug(f"Entry {i+1}:")
+        for key in entry.keys():
+            log.debug(f"  {key:>15s}: {entry[key]}")
         try:
             output_list.append(entry[field])
         except KeyError:
