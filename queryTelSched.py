@@ -122,6 +122,7 @@ def queryTelSched(date, tel, field):
                 log.warning(f'Please update the script calling for "{field}" '
                             f'to use "{translations[field]}" instead.')
     print('/'.join(output_list))
+    return output_list
 
 
 if __name__ == '__main__':
