@@ -31,8 +31,6 @@ Modification history:
 '''
 
 ## Import General Tools
-import sys
-import os
 import argparse
 import logging
 import requests
