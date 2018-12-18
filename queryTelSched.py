@@ -1,7 +1,33 @@
 #!/usr/env/python
 
 '''
+Name: queryTelSched.py
 
+Purpose:
+    Query the telescope database and return the value of `field` for the given
+    `date` and `tel`.  Try to replicate functionality of the old queryTelSched
+    which was located at: ~kics/instr/bin/queryTelSched (on a summit machine).
+
+Example Use:
+    python queryTelSched.py 2018-12-18 1 Instrument
+
+Arguments:
+    date: The date for the query in  a string with YYYY-MM-DD format.
+
+    tel: An int (1 or 2) indicating the telescope.
+
+    field: A string with the field to return.  For more information on the API
+        and on what fields are returnable, see the web liks below.
+
+Additional Information on the Telescope Schedule API can be found here:
+https://www.keck.hawaii.edu/software/db_api/telSchedule.php
+
+Details on the getSchedule command and what it returns can be found here:
+https://www.keck.hawaii.edu/software/db_api/telSchedule.php?cmd=getSchedule
+
+Modification history:
+    2018-12-18   jwalawender  Original version (adapted from old version for
+                              old database API).
 '''
 
 ## Import General Tools
@@ -47,10 +73,13 @@ LogConsoleHandler.setFormatter(LogFormat)
 log.addHandler(LogConsoleHandler)
 
 
+##-------------------------------------------------------------------------
+## Define some useful functions
+##-------------------------------------------------------------------------
 def querydb(req):
-'''A simple wrapper to form a generic API level query to the telescope schedule
-web API.  Returns a JSON object with the result of the query.
-'''
+    '''A simple wrapper to form a generic API level query to the telescope
+    schedule web API.  Returns a JSON object with the result of the query.
+    '''
     log.debug('Querying telescope schedule')
     url = f"https://www.keck.hawaii.edu/software/db_api/telSchedule.php?{req}"
     r = requests.get(url)
@@ -58,10 +87,10 @@ web API.  Returns a JSON object with the result of the query.
 
 
 def get_schedule(date, tel):
-'''Use the getSchedule command with the telescope schedule web API with
-arguments for date and telescope number.  Returns a JSON object with the
-schedule result.
-'''
+    '''Use the querydb function and getSchedule of the telescope schedule web
+    API with arguments for date and telescope number.  Returns a JSON object
+    with the schedule result.
+    '''
     if tel not in [1,2]:
         log.error("Telescope number must be 1 or 2.")
         return
@@ -75,9 +104,6 @@ schedule result.
 ## Main Program: queryTelSched
 ##-------------------------------------------------------------------------
 def queryTelSched(date, tel, field):
-'''Try to replicate basic functionality of the old queryTelSched located at
-~kics/instr/bin/queryTelSched (on a summit machine).
-'''
     result = get_schedule(date, tel)
     log.debug(f"Found {len(result)} programs")
 
