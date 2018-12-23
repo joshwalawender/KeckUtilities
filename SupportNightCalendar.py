@@ -9,6 +9,9 @@ import json
 import re
 from datetime import datetime as dt
 from datetime import timedelta as tdelta
+
+import numpy as np
+from astropy import units as u
 from astropy.table import Table, Column
 from astropy.time import Time
 from astropy.coordinates import EarthLocation
@@ -82,8 +85,14 @@ def get_twilights(date):
     obs = Observer(location=location, name='Keck', timezone='US/Hawaii')
     date = Time(dt.strptime(f'{date} 14:00:00', '%Y-%m-%d %H:%M:%S'))
 
+    h = 4.2*u.km
+    R = (1.0*u.earthRad).to(u.km)
+    d = np.sqrt(h*(2*R+h))
+    phi = (np.arccos((d/R).value)*u.radian).to(u.deg)
+    MK = phi - 90*u.deg
+
     t = {}
-    t['seto'] = obs.sun_set_time(date, which='next').datetime
+    t['seto'] = obs.sun_set_time(date, which='next', horizon=MK).datetime
     t['ento'] = obs.twilight_evening_nautical(date, which='next').datetime
     t['eato'] = obs.twilight_evening_astronomical(date, which='next').datetime
     t['mato'] = obs.twilight_morning_astronomical(date, which='next').datetime
