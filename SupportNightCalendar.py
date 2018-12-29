@@ -11,11 +11,7 @@ from datetime import datetime as dt
 from datetime import timedelta as tdelta
 
 import numpy as np
-from astropy import units as u
 from astropy.table import Table, Column
-from astropy.time import Time
-from astropy.coordinates import EarthLocation
-from astroplan import Observer
 
 
 ##-------------------------------------------------------------------------
@@ -75,15 +71,13 @@ class ICSFile(object):
 ##-------------------------------------------------------------------------
 ## Get Twilight Info for Date
 ##-------------------------------------------------------------------------
-def get_twilights(date):
+def calculate_twilights(date):
     """ Determine sunrise and sunset times """
-    location = EarthLocation(
-        lat=19+49/60+33.40757/60**2,
-        lon=-(155+28/60+28.98665/60**2),
-        height=4159.58,
-    )
-    obs = Observer(location=location, name='Keck', timezone='US/Hawaii')
-    date = Time(dt.strptime(f'{date} 14:00:00', '%Y-%m-%d %H:%M:%S'))
+
+    from astropy import units as u
+    from astropy.time import Time
+    from astropy.coordinates import EarthLocation
+    from astroplan import Observer
 
     h = 4.2*u.km
     R = (1.0*u.earthRad).to(u.km)
@@ -91,13 +85,22 @@ def get_twilights(date):
     phi = (np.arccos((d/R).value)*u.radian).to(u.deg)
     MK = phi - 90*u.deg
 
+    location = EarthLocation(
+        lat=19+49/60+33.40757/60**2,
+        lon=-(155+28/60+28.98665/60**2),
+        height=4159.58,
+    )
+    obs = Observer(location=location, name='Keck', timezone='US/Hawaii')
+    date = Time(dt.strptime(f'{date} 18:00:00', '%Y-%m-%d %H:%M:%S'))
+
     t = {}
-    t['seto'] = obs.sun_set_time(date, which='next', horizon=MK).datetime
-    t['ento'] = obs.twilight_evening_nautical(date, which='next').datetime
-    t['eato'] = obs.twilight_evening_astronomical(date, which='next').datetime
-    t['mato'] = obs.twilight_morning_astronomical(date, which='next').datetime
-    t['mnto'] = obs.twilight_morning_nautical(date, which='next').datetime
-    t['riseo'] = obs.sun_rise_time(date, which='next').datetime
+    sunset = obs.sun_set_time(date, which='nearest', horizon=MK).datetime
+    t['seto'] = sunset
+    t['ento'] = obs.twilight_evening_nautical(Time(sunset), which='next').datetime
+    t['eato'] = obs.twilight_evening_astronomical(Time(sunset), which='next').datetime
+    t['mato'] = obs.twilight_morning_astronomical(Time(sunset), which='next').datetime
+    t['mnto'] = obs.twilight_morning_nautical(Time(sunset), which='next').datetime
+    t['riseo'] = obs.sun_rise_time(Time(sunset), which='next').datetime
     t['set'] = t['seto'].strftime('%H:%M UT')
     t['ent'] = t['ento'].strftime('%H:%M UT')
     t['eat'] = t['eato'].strftime('%H:%M UT')
@@ -106,6 +109,54 @@ def get_twilights(date):
     t['rise'] = t['riseo'].strftime('%H:%M UT')
 
     return t
+
+
+def get_twilights(date):
+    """ Get twilight times from Keck API """
+    url = f"https://www.keck.hawaii.edu/software/db_api/metrics.php?date={date}"
+    r = requests.get(url)
+    result = json.loads(r.text)
+    assert len(result) == 1
+    t = result[0]
+
+    # In Keck API, date is HST, but time is UT (ugh!)
+    h, m = t['sunset'].split(':')
+    t['sunset HST'] = f"{int(h)+14:02d}:{m}" # correct to HST
+    
+    t['seto'] = dt.strptime(f"{t['udate']} {t['sunset HST']}", '%Y-%m-%d %H:%M')
+    t['seto'] += tdelta(0,10*60*60) # correct to UT
+    t['riseo'] = dt.strptime(f"{t['udate']} {t['sunrise']}", '%Y-%m-%d %H:%M')
+    t['riseo'] += tdelta(0,24*60*60) # correct to UT
+
+    return t
+
+
+def compare_twilights_on(date):
+    calc = calculate_twilights(date)
+    keck = get_twilights(date)
+
+#     print(calc['seto'])
+#     print(keck['seto'])
+#     print(calc['riseo'])
+#     print(keck['riseo'])
+
+    diff = [(calc['seto'] - keck['seto']).total_seconds()/60,
+            (calc['riseo'] - keck['riseo']).total_seconds()/60,
+            ]
+    diff.append(diff[1]-diff[0]) # add extra night duration in calc
+
+    return diff
+
+
+def compare_twilights():
+    date = dt.strptime(f'2018-08-01 18:00:00', '%Y-%m-%d %H:%M:%S')
+    enddate = dt.strptime(f'2019-02-01 18:00:00', '%Y-%m-%d %H:%M:%S')
+    while date < enddate:
+        datestr = date.strftime('%Y-%m-%d')
+        diff = compare_twilights_on(datestr)
+        print(f"{date}: {diff[0]:+5.1f}, {diff[1]:+5.1f}, {diff[2]:+5.1f}")
+        date += tdelta(0,24*60*60)
+
 
 
 ##-------------------------------------------------------------------------
@@ -267,11 +318,13 @@ def main():
                 title = f"{instruments[0]} {supporttype}"
             else:
                 title = f"{'/'.join(instruments)} {supporttype}"
-            calstart = (twilights['seto']-tdelta(0,10*60*60)).strftime('%Y%m%dT%H%M00')
+#             calstart = (twilights['seto']-tdelta(0,10*60*60)).strftime('%Y%m%dT%H%M00')
+            calstart = f"{twilights['udate'].replace('-', '')}"\
+                       f"T{twilights['sunset HST'].replace(':', '')}00"
             calend = f"{date.replace('-', '')}T230000"
             description = [title,
-                           f"Sunset: {twilights['set']}",
-                           f"12deg:  {twilights['ent']}",
+                           f"Sunset: {twilights['sunset']} UT",
+                           f"12deg:  {twilights['dusk_12deg']} UT",
                            ]
             for entry in progsbytel.groups[idx]:
                 obslist = entry['Observers'].split(',')
@@ -285,8 +338,8 @@ def main():
                 description.append(f"Start Time: {entry['StartTime']}")
 
             description.append('')
-            description.append(f"12deg:  {twilights['mnt']}")
-            description.append(f"Sunrise: {twilights['rise']}")
+            description.append(f"12deg:  {twilights['dawn_12deg']} UT")
+            description.append(f"Sunrise: {twilights['sunrise']} UT")
 
             ical_file.add_event(title, calstart, calend, description)
 
