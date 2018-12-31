@@ -8,7 +8,7 @@ import logging
 from datetime import datetime as dt
 from datetime import timedelta as tdelta
 
-from SupportNightCalendar import querydb, get_SA, get_telsched
+from telescopeSchedule import *
 
 ##-------------------------------------------------------------------------
 ## Parse Command Line Arguments

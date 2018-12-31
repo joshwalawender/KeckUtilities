@@ -4,8 +4,6 @@
 import sys
 import os
 from gooey import Gooey, GooeyParser
-import requests
-import json
 import re
 from datetime import datetime as dt
 from datetime import timedelta as tdelta
@@ -13,6 +11,7 @@ from datetime import timedelta as tdelta
 import numpy as np
 from astropy.table import Table, Column
 
+from telescopeSchedule import *
 
 ##-------------------------------------------------------------------------
 ## ICS File Object
@@ -156,50 +155,6 @@ def compare_twilights():
         diff = compare_twilights_on(datestr)
         print(f"{date}: {diff[0]:+5.1f}, {diff[1]:+5.1f}, {diff[2]:+5.1f}")
         date += tdelta(0,24*60*60)
-
-
-
-##-------------------------------------------------------------------------
-## Get Telescope Schedule
-##-------------------------------------------------------------------------
-def querydb(req):
-    url = f"https://www.keck.hawaii.edu/software/db_api/telSchedule.php?{req}"
-    r = requests.get(url)
-    return json.loads(r.text)
-
-
-def get_SA(date=None, tel=1):
-    if date is None:
-        return None
-    req = f"cmd=getNightStaff&date={date}&type=sa&telnr={tel}"
-    try:
-        sa = querydb(req)[0]['Alias']
-    except:
-        sa= ''
-    return sa
-
-
-def get_telsched(from_date=None, ndays=None, telnr=None):
-    if from_date is None:
-        now = dt.now()
-        from_date = now.strftime('%Y-%m-%d')
-    else:
-        assert dt.strptime(from_date, '%Y-%m-%d')
-
-    req = f"cmd=getSchedule&date={from_date}"
-    if telnr is not None:
-        req += f"&telnr={telnr:d}"
-    if ndays is not None:
-        req += f"&numdays={ndays}"
-    telsched = Table(data=querydb(req))
-    telsched.sort(keys=['Date', 'TelNr'])
-    return telsched
-
-
-def add_SA_to_telsched(telsched):
-    sas = [get_SA(date=x['Date'], tel=x['TelNr']) for x in telsched]
-    telsched.add_column(Column(sas, name='SA'))
-    return telsched
 
 
 ##-------------------------------------------------------------------------
