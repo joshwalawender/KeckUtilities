@@ -179,7 +179,7 @@ def get_SA(date=None, tel=1):
     return sa
 
 
-def get_telsched(from_date=None, ndays=None):
+def get_telsched(from_date=None, ndays=None, telnr=None):
     if from_date is None:
         now = dt.now()
         from_date = now.strftime('%Y-%m-%d')
@@ -187,6 +187,8 @@ def get_telsched(from_date=None, ndays=None):
         assert dt.strptime(from_date, '%Y-%m-%d')
 
     req = f"cmd=getSchedule&date={from_date}"
+    if telnr is not None:
+        req += f"&telnr={telnr:d}"
     if ndays is not None:
         req += f"&numdays={ndays}"
     telsched = Table(data=querydb(req))
