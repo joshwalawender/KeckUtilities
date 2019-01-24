@@ -15,7 +15,7 @@ from astropy.io import fits
 from astropy import units as u
 from astropy.modeling import models, fitting, Fittable2DModel, Parameter
 from astropy.table import Table
-from ccdproc import CCDData, combine, Combiner, flat_correct, trim_image
+from ccdproc import CCDData, combine, Combiner, flat_correct, trim_image, median_filter
 
 ##-------------------------------------------------------------------------
 ## Parse Command Line Arguments
@@ -27,16 +27,32 @@ p = argparse.ArgumentParser(description='''
 p.add_argument("-v", "--verbose", dest="verbose",
     default=False, action="store_true",
     help="Be verbose! (default = False)")
+p.add_argument("-m", "--medfilt", dest="medfilt",
+    default=False, action="store_true",
+    help="Median filter images?")
+p.add_argument("-p", "--plot", dest="plot",
+    default=False, action="store_true",
+    help="Generate plots?")
 ## add options
-# p.add_argument("--input", dest="input", type=str,
-#     help="The input.")
+p.add_argument("--dark", dest="dark", type=str,
+    help="Dark file to use.")
+p.add_argument("--flat", dest="flat", type=str,
+    help="Master flat file to use.")
+p.add_argument("--seeing", dest="seeing", type=float,
+    default=0,
+    help="Seeing in arcsec.")
 ## add arguments
-# p.add_argument('argument', type=int,
-#                help="A single argument")
+p.add_argument('image', type=str,
+               help="Image file to analyze")
 # p.add_argument('allothers', nargs='*',
 #                help="All other arguments")
 args = p.parse_args()
 
+if args.dark is not None:
+    args.dark = os.path.expanduser(args.dark)
+if args.flat is not None:
+    args.flat = os.path.expanduser(args.flat)
+args.image = os.path.expanduser(args.image)
 
 ##-------------------------------------------------------------------------
 ## Create logger object
@@ -119,6 +135,16 @@ def unpad(x):
     '''
     return x[:,:-1]
 
+def slit_to_bars(slit):
+    '''Given a slit number (1-46), return the two bar numbers associated
+    with that slit.
+    '''
+    return (slit*2-1, slit*2)
+
+def bar_to_slit(bar):
+    '''Given a bar number, retun the slit associated with that bar.
+    '''
+    return int((bar+1)/2)
 
 def pixel_to_physical(x):
     '''Using the affine transformation determined by `fit_transforms`,
@@ -212,32 +238,46 @@ def create_master_flat(filepath='../../../KeckData/MOSFIRE_FCS/',
 ##-------------------------------------------------------------------------
 ## Reduce Image
 ##-------------------------------------------------------------------------
-def reduce_image(imagefile, darkfile = 'm180130_0001.fits',
-                 filepath='../../../KeckData/MOSFIRE_FCS/',
-                ):
-    if not os.path.exists('masterflat.fits'):
-        create_master_flat()
-    masterflat = CCDData.read('masterflat.fits', unit='adu')
-    dark = CCDData.read(os.path.join(filepath, darkfile), unit='adu')
-    im = CCDData.read(os.path.join(filepath, imagefile), unit='adu')
-    im = im.subtract(dark)
-    im = flat_correct(im, masterflat)
+def reduce_image(imagefile, dark=None, flat=None, medfilt=False):
+    im = CCDData.read(imagefile, unit='adu')
+    if dark is not None:
+        dark = CCDData.read(dark, unit='adu')
+        im = im.subtract(dark)
+    if flat is not None:
+#         masterflat = CCDData.read(flat, unit='adu')
+        hdul = fits.open(flat)
+        masterflat = CCDData(data=hdul[0].data, uncertainty=None, meta=hdul[0].header, unit='adu')
+        im = flat_correct(im, masterflat)
+    if medfilt is True:
+        im = median_filter(im, size=(3,3))
     return im
-    
+
+#     im = fits.open(imagefile)
+#     if dark is not None:
+#         masterdark = fits.open(dark)
+#         im[0].data -= masterdark[0].data
+#     if flat is not None:
+#         masterflat = fits.open(flat)
+#         norm = np.nanmedian(masterflat[0].data)
+#         im[0].data /= (masterflat[0].data / norm)
+#     return im
+
 
 ##-------------------------------------------------------------------------
-## Main Program
+## fit_alignment_box
 ##-------------------------------------------------------------------------
-def fit_alignment_box(im, boxat=[821, 1585], box_size=30, plot=False):
-    
-    fits_section = f'[{boxat[0]-box_size:d}:{boxat[0]+box_size:d}, {boxat[1]-box_size:d}:{boxat[1]+box_size:d}]'
-    region = trim_image(im, fits_section=fits_section)
-    
+def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
+    pixelscale = u.pixel_scale(0.1798*u.arcsec/u.pixel)
+
     # Estimate center of alignment box
-    threshold_pct = 70
+    threshold_pct = 80
     window = region.data > np.percentile(region.data, threshold_pct)
     alignment_box_position = ndimage.measurements.center_of_mass(window)
-    
+
+    # Determine fluctuations in sky
+    sky_amplitude = np.median(region.data[window])
+    sky_fluctuations = np.std(region.data[window])
+
     # Detect box edges
     gradx = np.gradient(region.data, axis=1)
     horizontal_profile = np.sum(gradx, axis=0)
@@ -245,98 +285,133 @@ def fit_alignment_box(im, boxat=[821, 1585], box_size=30, plot=False):
     grady = np.gradient(region.data, axis=0)
     vertical_profile = np.sum(grady, axis=1)
     v_edges = fit_CSU_edges(vertical_profile)
-    
+
     # Estimate stellar position
     maxr = region.data.max()
     starloc = (np.where(region.data == maxr)[0][0],
                np.where(region.data == maxr)[1][0])
-    
+
     # Build model of sky, star, & box
-    boxamplitude = 1 #np.percentile(region.data, 90)
-    star_amplitude = region.data.max() - boxamplitude
-    
+    boxamplitude = 1
+
     box = mosfireAlignmentBox(boxamplitude, alignment_box_position[1], alignment_box_position[0],\
                        abs(h_edges[0]-h_edges[1]), abs(v_edges[0]-v_edges[1]))
     box.amplitude.fixed = True
     box.x_width.min = 10
     box.y_width.min = 10
-    
-    star = models.Gaussian2D(star_amplitude, starloc[1], starloc[0])
-    star.amplitude.min = 0
-    star.x_stddev.min = 1
-    star.x_stddev.max = 8
-    star.y_stddev.min = 1
-    star.y_stddev.max = 8
-    
-    sky = models.Const2D(np.percentile(region.data, 90))
+
+    sky = models.Const2D(sky_amplitude)
     sky.amplitude.min = 0
-    
+
+    star_amplitude = region.data.max() - sky_amplitude
+    star_sigma = star_amplitude / sky_fluctuations
+    if star_sigma < 5:
+        if verbose: print(f'No star detected.  sigma={star_sigma:.1f}')
+        return [None]*4
+    else:
+        if verbose: print(f'Detected peak pixel {star_sigma:.1f} sigma above sky.')
+    star = models.Gaussian2D(star_amplitude, starloc[1], starloc[0])
+    star.amplitude.min = 5*sky_fluctuations
+    star.x_stddev.min = 1 # FWHM = 2.355*stddev = 0.42 arcsec FWHM
+    star.x_stddev.max = 4 # FWHM = 2.355*stddev = 1.47 arcsec FWHM
+    star.y_stddev.min = 1
+    star.y_stddev.max = 4
+
+    if seeing is not None and seeing > 0:
+        sigma = (seeing / 2.355 * u.arcsec).to(u.pixel, equivalencies=pixelscale)
+        star.x_stddev.min = max(2, sigma.value-1)
+        star.y_stddev.min = max(2, sigma.value-1)
+        star.x_stddev.max = min(sigma.value+1, 4)
+        star.y_stddev.max = min(sigma.value+1, 4)
+#         print(f"Using seeing value {seeing} arcsec. sigma limits {star.x_stddev.min}, {star.x_stddev.max} pix")
+
     model = box*(sky + star)
-    
+
     fitter = fitting.LevMarLSQFitter()
     y, x = np.mgrid[:2*box_size+1, :2*box_size+1]
     fit = fitter(model, x, y, region.data)
-    print(fitter.fit_info['message'])
-    for i,name in enumerate(fit.param_names):
-        print(f"{name:15s} = {fit.parameters[i]:.2f}")
-    
-    pixelscale = u.pixel_scale(0.1798*u.arcsec/u.pixel)
-    FWHMx = 2*(2*np.log(2))**0.5*fit.x_stddev_2 * u.pix
-    FWHMy = 2*(2*np.log(2))**0.5*fit.y_stddev_2 * u.pix
-    FWHM = (FWHMx**2 + FWHMy**2)**0.5/2**0.5
-    stellar_flux = 2*np.pi*fit.amplitude_2.value*fit.x_stddev_2.value*fit.y_stddev_2.value
 
+    FWHMx = 2*(2*np.log(2))**0.5*fit.x_stddev_2.value * u.pix
+    FWHMy = 2*(2*np.log(2))**0.5*fit.y_stddev_2.value * u.pix
+    FWHM = (FWHMx**2 + FWHMy**2)**0.5/2**0.5
+    FWHMarcsec = FWHM.to(u.arcsec, equivalencies=pixelscale)
+    sky_amplitude = fit.amplitude_1.value
+    star_flux = 2*np.pi*fit.amplitude_2.value*fit.x_stddev_2.value*fit.y_stddev_2.value
+    star_amplitude = fit.amplitude_2.value
     boxpos_x = boxat[1] - box_size + fit.x_0_0.value
     boxpos_y = boxat[0] - box_size + fit.y_0_0.value
+    star_x = boxat[1] - box_size + fit.x_mean_2.value
+    star_y = boxat[0] - box_size + fit.y_mean_2.value
 
-    starpos_x = boxat[1] - box_size + fit.x_mean_2.value
-    starpos_y = boxat[0] - box_size + fit.y_mean_2.value
+#     modelim = np.zeros((61,61))
+#     fitim = np.zeros((61,61))
+#     for i in range(0,60):
+#         for j in range(0,60):
+#             modelim[j,i] = model(i,j)
+#             fitim[j,i] = fit(i,j)
+#     residuals = np.sum(region.data-fitim)
 
-    print(f"Sky Brightness = {fit.amplitude_1.value:.0f} ADU")
-    print(f"Box X Center = {boxpos_x:.0f}")
-    print(f"Box Y Center = {boxpos_y:.0f}")
-    print(f"Stellar FWHM = {FWHM.to(u.arcsec, equivalencies=pixelscale):.2f}")
-    print(f"Stellar Xpos = {starpos_x:.0f}")
-    print(f"Stellar Xpos = {starpos_y:.0f}")
-    print(f"Stellar Amplitude = {fit.amplitude_2.value:.0f} ADU")
-    print(f"Stellar Flux (fit) = {stellar_flux:.0f} ADU")
-    
-    if plot == True:
-        modelim = np.zeros((61,61))
-        fitim = np.zeros((61,61))
-        for i in range(0,60):
-            for j in range(0,60):
-                modelim[j,i] = model(i,j)
-                fitim[j,i] = fit(i,j)
-        resid = region.data-fitim
-        plt.figure(figsize=(16,24))
-        plt.subplot(1,4,1)
-        plt.imshow(region.data, vmin=fit.amplitude_1.value*0.9, vmax=fit.amplitude_1.value+fit.amplitude_2.value)
-        plt.subplot(1,4,2)
-        plt.imshow(modelim, vmin=fit.amplitude_1.value*0.9, vmax=fit.amplitude_1.value+fit.amplitude_2.value)
-        plt.subplot(1,4,3)
-        plt.imshow(fitim, vmin=fit.amplitude_1.value*0.9, vmax=fit.amplitude_1.value+fit.amplitude_2.value)
-        plt.subplot(1,4,4)
-        plt.imshow(resid, vmin=-1000, vmax=1000)
-        plt.show()
-    
+    if verbose: print(f"  Box X Center = {boxpos_x:.0f}")
+    if verbose: print(f"  Box Y Center = {boxpos_y:.0f}")
+    if verbose: print(f"  Sky Brightness = {fit.amplitude_1.value:.0f} ADU")
+    if verbose: print(f"  Stellar FWHM = {FWHMarcsec:.2f}")
+    if verbose: print(f"  Stellar Xpos = {star_x:.0f}")
+    if verbose: print(f"  Stellar Xpos = {star_y:.0f}")
+    if verbose: print(f"  Stellar Amplitude = {star_amplitude:.0f} ADU")
+    if verbose: print(f"  Stellar Flux (fit) = {star_flux:.0f} ADU")
+
+    result = {'Star X': star_x,
+              'Star Y': star_y,
+              'Star Amplitude': star_amplitude,
+              'Sky Amplitude': sky_amplitude,
+              'FWHM pix': FWHM.value,
+              'FWHM arcsec': FWHMarcsec,
+#               'Residuals': residuals,
+             }
+    return result
+
+
 if __name__ == '__main__':
-    im = reduce_image('/Users/jwalawender/KeckData/MOSFIRE_FCS/m180210_0254.fits')
+    box_size=30
+    im = reduce_image(args.image, dark=args.dark, flat=args.flat,
+                      medfilt=args.medfilt)
+    hdul = fits.open(args.image)
 
     # Get info about alignment box positions
-    hdul = fits.open('/Users/jwalawender/KeckData/MOSFIRE_FCS/m180210_0254.fits')
     slits = Table(hdul[3].data)
     slits = slits.group_by('Target_Priority')
     assert float(min(slits['Target_Priority'])) == -1.0
-    alignment_boxes = slits.groups[0]
+    alignment_box_table = slits.groups[0]
+    alignment_boxes = [[np.mean([hdul[0].header.get(f'B{b:02d}POS') for b in slit_to_bars(int(s))]), int(s)]
+                       for s in alignment_box_table['Slit_Number']]
+    box_pix = physical_to_pixel(alignment_boxes)
 
-    
+    if args.plot == True:
+        plt.figure(figsize=(16,6))
 
-    boxes = [[1372, 1900],
-             [821, 1585],
-             [1542, 965],
-             [792, 920],
-             [1268, 302],
-             ]
-    for box in boxes:
-        fit_alignment_box(im, boxat=box, plot=True)
+    for i,box in enumerate(box_pix):
+        boxat = [int(box[0]), int(box[1])]
+        fits_section = f'[{boxat[0]-box_size:d}:{boxat[0]+box_size:d}, '\
+                       f'{boxat[1]-box_size:d}:{boxat[1]+box_size:d}]'
+        region = trim_image(im, fits_section=fits_section)
+        result = fit_alignment_box(region, box_size=box_size, verbose=False, seeing=args.seeing)
+
+        print(f"Star Position: {result['Star X']:.1f}, {result['Star Y']:.1f}")
+        print(f"  Star Amplitude: {result['Star Amplitude']:.0f} ADU")
+        print(f"  Star FWHM: {result['FWHM arcsec']:.2f} arcsec")
+        print(f"  Sky Amplitude: {result['Sky Amplitude']:.0f} ADU")
+
+        if args.plot == True:
+            plt.subplot(1,len(box_pix),i+1, aspect='equal')
+            plt.title(f"Alignment Box\nat {boxat[1]:d}, {boxat[0]:d}")
+            plt.imshow(region.data, origin='lower',
+                       vmin=result['Sky Amplitude']*0.9,
+                       vmax=result['Sky Amplitude']+result['Star Amplitude'])
+            cxy = (result['Star X']-boxat[1]+box_size, result['Star Y']-boxat[0]+box_size)
+            c = plt.Circle(cxy, result['FWHM pix'], linewidth=2, ec='g', fc='none', alpha=0.3)
+            ax = plt.gca()
+            ax.add_artist(c)
+            plt.xticks([], [])
+            plt.yticks([], [])
+    if args.plot == True:
+        plt.show()
