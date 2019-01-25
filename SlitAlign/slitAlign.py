@@ -17,42 +17,6 @@ from astropy.modeling import models, fitting, Fittable2DModel, Parameter
 from astropy.table import Table
 from ccdproc import CCDData, combine, Combiner, flat_correct, trim_image, median_filter
 
-##-------------------------------------------------------------------------
-## Parse Command Line Arguments
-##-------------------------------------------------------------------------
-## create a parser object for understanding command-line arguments
-p = argparse.ArgumentParser(description='''
-''')
-## add flags
-p.add_argument("-v", "--verbose", dest="verbose",
-    default=False, action="store_true",
-    help="Be verbose! (default = False)")
-p.add_argument("-m", "--medfilt", dest="medfilt",
-    default=False, action="store_true",
-    help="Median filter images?")
-p.add_argument("-p", "--plot", dest="plot",
-    default=False, action="store_true",
-    help="Generate plots?")
-## add options
-p.add_argument("--dark", dest="dark", type=str,
-    help="Dark file to use.")
-p.add_argument("--flat", dest="flat", type=str,
-    help="Master flat file to use.")
-p.add_argument("--seeing", dest="seeing", type=float,
-    default=0,
-    help="Seeing in arcsec.")
-## add arguments
-p.add_argument('image', type=str,
-               help="Image file to analyze")
-# p.add_argument('allothers', nargs='*',
-#                help="All other arguments")
-args = p.parse_args()
-
-if args.dark is not None:
-    args.dark = os.path.expanduser(args.dark)
-if args.flat is not None:
-    args.flat = os.path.expanduser(args.flat)
-args.image = os.path.expanduser(args.image)
 
 ##-------------------------------------------------------------------------
 ## Create logger object
@@ -338,10 +302,10 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
     sky_amplitude = fit.amplitude_1.value
     star_flux = 2*np.pi*fit.amplitude_2.value*fit.x_stddev_2.value*fit.y_stddev_2.value
     star_amplitude = fit.amplitude_2.value
-    boxpos_x = boxat[1] - box_size + fit.x_0_0.value
-    boxpos_y = boxat[0] - box_size + fit.y_0_0.value
-    star_x = boxat[1] - box_size + fit.x_mean_2.value
-    star_y = boxat[0] - box_size + fit.y_mean_2.value
+    boxpos_x = fit.x_0_0.value
+    boxpos_y = fit.y_0_0.value
+    star_x = fit.x_mean_2.value
+    star_y = fit.y_mean_2.value
 
 #     modelim = np.zeros((61,61))
 #     fitim = np.zeros((61,61))
@@ -371,11 +335,10 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
     return result
 
 
-if __name__ == '__main__':
-    box_size=30
-    im = reduce_image(args.image, dark=args.dark, flat=args.flat,
-                      medfilt=args.medfilt)
-    hdul = fits.open(args.image)
+def analyze_image(imagefile, dark=None, flat=None, box_size=30, medfilt=False,
+                  plot=False, seeing=0):
+    im = reduce_image(imagefile, dark=dark, flat=flat, medfilt=medfilt)
+    hdul = fits.open(imagefile)
 
     # Get info about alignment box positions
     slits = Table(hdul[3].data)
@@ -386,32 +349,82 @@ if __name__ == '__main__':
                        for s in alignment_box_table['Slit_Number']]
     box_pix = physical_to_pixel(alignment_boxes)
 
-    if args.plot == True:
+    if plot == True:
         plt.figure(figsize=(16,6))
 
     for i,box in enumerate(box_pix):
+        result = None
         boxat = [int(box[0]), int(box[1])]
         fits_section = f'[{boxat[0]-box_size:d}:{boxat[0]+box_size:d}, '\
                        f'{boxat[1]-box_size:d}:{boxat[1]+box_size:d}]'
         region = trim_image(im, fits_section=fits_section)
-        result = fit_alignment_box(region, box_size=box_size, verbose=False, seeing=args.seeing)
-
-        print(f"Star Position: {result['Star X']:.1f}, {result['Star Y']:.1f}")
-        print(f"  Star Amplitude: {result['Star Amplitude']:.0f} ADU")
-        print(f"  Star FWHM: {result['FWHM arcsec']:.2f} arcsec")
-        print(f"  Sky Amplitude: {result['Sky Amplitude']:.0f} ADU")
-
-        if args.plot == True:
+        if plot == True:
             plt.subplot(1,len(box_pix),i+1, aspect='equal')
-            plt.title(f"Alignment Box\nat {boxat[1]:d}, {boxat[0]:d}")
+            plt.title(f"Alignment Box {i+1}\nat {boxat[1]:d}, {boxat[0]:d}")
             plt.imshow(region.data, origin='lower',
-                       vmin=result['Sky Amplitude']*0.9,
-                       vmax=result['Sky Amplitude']+result['Star Amplitude'])
-            cxy = (result['Star X']-boxat[1]+box_size, result['Star Y']-boxat[0]+box_size)
-            c = plt.Circle(cxy, result['FWHM pix'], linewidth=2, ec='g', fc='none', alpha=0.3)
-            ax = plt.gca()
-            ax.add_artist(c)
+                       vmin=np.percentile(region.data, 85)*0.95,
+                       vmax=region.data.max()*1.02)
+
+        try:
+            result = fit_alignment_box(region, box_size=box_size, verbose=False, seeing=seeing)
+            if plot == True:
+                cxy = (result['Star X'], result['Star Y'])
+                c = plt.Circle(cxy, result['FWHM pix'], linewidth=2, ec='g', fc='none', alpha=0.3)
+                ax = plt.gca()
+                ax.add_artist(c)
+            print(f"Alignment Box {i+1} results:")
+            print(f"  Star Position: {result['Star X']:.1f}, {result['Star Y']:.1f}")
+            print(f"  Star Amplitude: {result['Star Amplitude']:.0f} ADU")
+            print(f"  Star FWHM: {result['FWHM arcsec']:.2f}")
+            print(f"  Sky Amplitude: {result['Sky Amplitude']:.0f} ADU")
+        except:
+            print(f'Alignment Box {i+1} failed: {result}')
+
+        if plot == True:
             plt.xticks([], [])
             plt.yticks([], [])
-    if args.plot == True:
+
+    if plot == True:
         plt.show()
+
+
+if __name__ == '__main__':
+    ##-------------------------------------------------------------------------
+    ## Parse Command Line Arguments
+    ##-------------------------------------------------------------------------
+    ## create a parser object for understanding command-line arguments
+    p = argparse.ArgumentParser(description='''
+    ''')
+    ## add flags
+    p.add_argument("-v", "--verbose", dest="verbose",
+        default=False, action="store_true",
+        help="Be verbose! (default = False)")
+    p.add_argument("-m", "--medfilt", dest="medfilt",
+        default=False, action="store_true",
+        help="Median filter images?")
+    p.add_argument("-p", "--plot", dest="plot",
+        default=False, action="store_true",
+        help="Generate plots?")
+    ## add options
+    p.add_argument("-d", "--dark", dest="dark", type=str,
+        help="Dark file to use.")
+    p.add_argument("-f", "--flat", dest="flat", type=str,
+        help="Master flat file to use.")
+    p.add_argument("-s", "--seeing", dest="seeing", type=float,
+        default=0,
+        help="Seeing in arcsec.")
+    ## add arguments
+    p.add_argument('image', type=str,
+                   help="Image file to analyze")
+    # p.add_argument('allothers', nargs='*',
+    #                help="All other arguments")
+    args = p.parse_args()
+
+    if args.dark is not None:
+        args.dark = os.path.expanduser(args.dark)
+    if args.flat is not None:
+        args.flat = os.path.expanduser(args.flat)
+    args.image = os.path.expanduser(args.image)
+
+    analyze_image(args.image, dark=args.dark, flat=args.flat, box_size=30,
+                  medfilt=args.medfilt, plot=args.plot, seeing=args.seeing)
