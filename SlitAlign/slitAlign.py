@@ -163,8 +163,9 @@ def fit_CSU_edges(profile):
     if abs(fit.stddev_0.value) <= 3 and abs(fit.stddev_1.value) <= 3\
        and fit.amplitude_0.value < -1 and fit.amplitude_1.value > 1\
        and fit.mean_0.value > fit.mean_1.value:
-        x1 = fit.mean_0.value
-        x2 = fit.mean_1.value
+        x = [fit.mean_0.value, fit.mean_1.value]
+        x1 = int(np.floor(min(x)-1))
+        x2 = int(np.ceil(max(x)+1))
     else:
         x1 = None
         x2 = None
@@ -202,7 +203,7 @@ def create_master_flat(filepath='../../../KeckData/MOSFIRE_FCS/',
 ##-------------------------------------------------------------------------
 ## Reduce Image
 ##-------------------------------------------------------------------------
-def reduce_image(imagefile, dark=None, flat=None, medfilt=False):
+def reduce_image(imagefile, dark=None, flat=None):
     im = CCDData.read(imagefile, unit='adu')
     if dark is not None:
         dark = CCDData.read(dark, unit='adu')
@@ -212,8 +213,6 @@ def reduce_image(imagefile, dark=None, flat=None, medfilt=False):
         hdul = fits.open(flat)
         masterflat = CCDData(data=hdul[0].data, uncertainty=None, meta=hdul[0].header, unit='adu')
         im = flat_correct(im, masterflat)
-    if medfilt is True:
-        im = median_filter(im, size=(3,3))
     return im
 
 #     im = fits.open(imagefile)
@@ -230,13 +229,19 @@ def reduce_image(imagefile, dark=None, flat=None, medfilt=False):
 ##-------------------------------------------------------------------------
 ## fit_alignment_box
 ##-------------------------------------------------------------------------
-def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
+def fit_alignment_box(region, box_size=30, verbose=False, seeing=None,
+                      medfilt=False):
     pixelscale = u.pixel_scale(0.1798*u.arcsec/u.pixel)
+    if medfilt is True:
+        region = median_filter(region, size=(3,3))
 
     # Estimate center of alignment box
     threshold_pct = 80
     window = region.data > np.percentile(region.data, threshold_pct)
     alignment_box_position = ndimage.measurements.center_of_mass(window)
+
+    offset_val = np.median(region.data[~window])
+    offset = models.Const2D(offset_val)
 
     # Determine fluctuations in sky
     sky_amplitude = np.median(region.data[window])
@@ -251,9 +256,9 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
     v_edges = fit_CSU_edges(vertical_profile)
 
     # Estimate stellar position
-    maxr = region.data.max()
-    starloc = (np.where(region.data == maxr)[0][0],
-               np.where(region.data == maxr)[1][0])
+    maxr = np.max(region.data)
+    starloc = (np.where(region == maxr)[0][0],
+               np.where(region == maxr)[1][0])
 
     # Build model of sky, star, & box
     boxamplitude = 1
@@ -267,14 +272,22 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
     sky = models.Const2D(sky_amplitude)
     sky.amplitude.min = 0
 
-    star_amplitude = region.data.max() - sky_amplitude
+    star_amplitude = maxr - sky_amplitude
     star_sigma = star_amplitude / sky_fluctuations
     if star_sigma < 5:
         if verbose: print(f'No star detected.  sigma={star_sigma:.1f}')
         return [None]*4
     else:
         if verbose: print(f'Detected peak pixel {star_sigma:.1f} sigma above sky.')
-    star = models.Gaussian2D(star_amplitude, starloc[1], starloc[0])
+    star = models.Gaussian2D(amplitude=star_amplitude,
+                             x_mean=starloc[1], y_mean=starloc[0],
+                             x_stddev=2, y_stddev=2)
+#     print(h_edges)
+#     print(v_edges)
+#     star.y_mean.min = v_edges[0]
+#     star.y_mean.max = v_edges[1]
+#     star.x_mean.min = h_edges[0]
+#     star.x_mean.max = h_edges[1]
     star.amplitude.min = 5*sky_fluctuations
     star.x_stddev.min = 1 # FWHM = 2.355*stddev = 0.42 arcsec FWHM
     star.x_stddev.max = 4 # FWHM = 2.355*stddev = 1.47 arcsec FWHM
@@ -289,7 +302,17 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
         star.y_stddev.max = min(sigma.value+1, 4)
 #         print(f"Using seeing value {seeing} arcsec. sigma limits {star.x_stddev.min}, {star.x_stddev.max} pix")
 
-    model = box*(sky + star)
+    model = box*(sky + star) + offset
+
+#     modelim = np.zeros((61,61))
+#     fitim = np.zeros((61,61))
+#     for i in range(0,60):
+#         for j in range(0,60):
+#             modelim[j,i] = model(i,j)
+#             fitim[j,i] = model(i,j)
+#     residuals = region.data-fitim
+#     residualsum = np.sum(residuals)
+#     import pdb ; pdb.set_trace()
 
     fitter = fitting.LevMarLSQFitter()
     y, x = np.mgrid[:2*box_size+1, :2*box_size+1]
@@ -306,14 +329,6 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
     boxpos_y = fit.y_0_0.value
     star_x = fit.x_mean_2.value
     star_y = fit.y_mean_2.value
-
-#     modelim = np.zeros((61,61))
-#     fitim = np.zeros((61,61))
-#     for i in range(0,60):
-#         for j in range(0,60):
-#             modelim[j,i] = model(i,j)
-#             fitim[j,i] = fit(i,j)
-#     residuals = np.sum(region.data-fitim)
 
     if verbose: print(f"  Box X Center = {boxpos_x:.0f}")
     if verbose: print(f"  Box Y Center = {boxpos_y:.0f}")
@@ -337,7 +352,7 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None):
 
 def analyze_image(imagefile, dark=None, flat=None, box_size=30, medfilt=False,
                   plot=False, seeing=0):
-    im = reduce_image(imagefile, dark=dark, flat=flat, medfilt=medfilt)
+    im = reduce_image(imagefile, dark=dark, flat=flat)
     hdul = fits.open(imagefile)
 
     # Get info about alignment box positions
@@ -366,12 +381,14 @@ def analyze_image(imagefile, dark=None, flat=None, box_size=30, medfilt=False,
                        vmax=region.data.max()*1.02)
 
         try:
-            result = fit_alignment_box(region, box_size=box_size, verbose=False, seeing=seeing)
+            result = fit_alignment_box(region, box_size=box_size, verbose=False,
+                                       seeing=seeing, medfilt=medfilt)
             if plot == True:
                 cxy = (result['Star X'], result['Star Y'])
                 c = plt.Circle(cxy, result['FWHM pix'], linewidth=2, ec='g', fc='none', alpha=0.3)
                 ax = plt.gca()
                 ax.add_artist(c)
+                plt.plot(result['Star X'], result['Star Y'], 'g.')
             print(f"Alignment Box {i+1} results:")
             print(f"  Star Position: {result['Star X']:.1f}, {result['Star Y']:.1f}")
             print(f"  Star Amplitude: {result['Star Amplitude']:.0f} ADU")
