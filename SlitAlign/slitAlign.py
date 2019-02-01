@@ -136,6 +136,36 @@ def physical_to_pixel(x):
     return result
 
 
+def fit_transforms(pixels, targets):
+    '''Given a set of pixel coordinates (X, Y) and a set of target
+    coordinates (X, Y), fit the affine transformations (forward and
+    backward) to convert between the two coordinate systems.
+    
+    '''
+    if type(pixels) == list:
+        pixels = np.array(pixels)
+    if type(targets) == list:
+        targets = np.array(targets)
+    assert pixels.shape[1] == 2
+    assert targets.shape[1] == 2
+    assert pixels.shape[0] == targets.shape[0]
+
+    # Pad the data with ones, so that our transformation can do translations too
+    n = pixels.shape[0]
+    pad = lambda x: np.hstack([x, np.ones((x.shape[0], 1))])
+    unpad = lambda x: x[:,:-1]
+    X = pad(pixels)
+    Y = pad(targets)
+
+    # Solve the least squares problem X * A = Y
+    # to find our transformation matrix A
+    A, res, rank, s = np.linalg.lstsq(X, Y, rcond=None)
+    A[np.abs(A) < 1e-10] = 0
+
+    return A
+
+
+
 ##-------------------------------------------------------------------------
 ## Fit CSU Edges (copied from CSU initializer code)
 ##-------------------------------------------------------------------------
@@ -345,62 +375,103 @@ def fit_alignment_box(region, box_size=30, verbose=False, seeing=None,
               'Sky Amplitude': sky_amplitude,
               'FWHM pix': FWHM.value,
               'FWHM arcsec': FWHMarcsec,
+              'Box X': boxpos_x,
+              'Box Y': boxpos_y,
 #               'Residuals': residuals,
              }
     return result
 
 
 def analyze_image(imagefile, dark=None, flat=None, box_size=30, medfilt=False,
-                  plot=False, seeing=0):
+                  plot=False, seeing=0, pixelscale=0.1798, verbose=False):
     im = reduce_image(imagefile, dark=dark, flat=flat)
     hdul = fits.open(imagefile)
 
     # Get info about alignment box positions
-    slits = Table(hdul[3].data)
-    slits = slits.group_by('Target_Priority')
-    assert float(min(slits['Target_Priority'])) == -1.0
-    alignment_box_table = slits.groups[0]
-    alignment_boxes = [[np.mean([hdul[0].header.get(f'B{b:02d}POS') for b in slit_to_bars(int(s))]), int(s)]
-                       for s in alignment_box_table['Slit_Number']]
-    box_pix = physical_to_pixel(alignment_boxes)
+    alignment_box_table = Table(hdul[4].data)
 
     if plot == True:
         plt.figure(figsize=(16,6))
 
-    for i,box in enumerate(box_pix):
+    pixels = []
+    targets = []
+    for i,box in enumerate(alignment_box_table):
         result = None
-        boxat = [int(box[0]), int(box[1])]
+        slitno = int(box['Slit_Number'])
+        bar_nos = slit_to_bars(slitno)
+        bar_pos = [hdul[0].header.get(f'B{b:02d}POS') for b in bar_nos]
+        box_pos = np.mean(bar_pos)
+        box_pix = physical_to_pixel([[box_pos, slitno]])[0]
+        boxat = [int(box_pix[0]), int(box_pix[1])]
         fits_section = f'[{boxat[0]-box_size:d}:{boxat[0]+box_size:d}, '\
                        f'{boxat[1]-box_size:d}:{boxat[1]+box_size:d}]'
         region = trim_image(im, fits_section=fits_section)
+
+        targ_pos = float(box['Target_to_center_of_slit_distance'])/pixelscale
+
         if plot == True:
-            plt.subplot(1,len(box_pix),i+1, aspect='equal')
-            plt.title(f"Alignment Box {i+1}\nat {boxat[1]:d}, {boxat[0]:d}")
+            plt.subplot(1,len(alignment_box_table),i+1, aspect='equal')
+            plt.title(f"Alignment Box {i+1}\n{fits_section}")
             plt.imshow(region.data, origin='lower',
                        vmin=np.percentile(region.data, 85)*0.95,
                        vmax=region.data.max()*1.02)
 
-        try:
-            result = fit_alignment_box(region, box_size=box_size, verbose=False,
-                                       seeing=seeing, medfilt=medfilt)
-            if plot == True:
-                cxy = (result['Star X'], result['Star Y'])
-                c = plt.Circle(cxy, result['FWHM pix'], linewidth=2, ec='g', fc='none', alpha=0.3)
-                ax = plt.gca()
-                ax.add_artist(c)
-                plt.plot(result['Star X'], result['Star Y'], 'g.')
+#         try:
+        result = fit_alignment_box(region, box_size=box_size, verbose=False,
+                                   seeing=seeing, medfilt=medfilt)
+        star_pix = np.array([result['Star X']+boxat[0]-box_size,
+                             result['Star Y']+boxat[1]-box_size])
+        fitted_box_pix = np.array([result['Box X']+boxat[0]-box_size,
+                                   result['Box Y']+boxat[1]-box_size])
+        slitang = 0.22*np.pi/180
+        targ_pix_im = (result['Box X']-np.sin(slitang)*targ_pos,
+                       result['Box Y']+np.cos(slitang)*targ_pos)
+        targ_pix = np.array([targ_pix_im[0]+boxat[0]-box_size,
+                             targ_pix_im[1]+boxat[1]-box_size])
+        pixels.append(list(star_pix))
+        targets.append(list(targ_pix))
+        pix_err = targ_pix - star_pix
+        pos_err = pix_err*pixelscale
+
+        if plot == True:
+            cxy = (result['Star X'], result['Star Y'])
+            c = plt.Circle(cxy, result['FWHM pix'], linewidth=2, ec='g', fc='none', alpha=0.3)
+            ax = plt.gca()
+            ax.add_artist(c)
+            plt.plot(result['Star X'], result['Star Y'], 'g.')
+#             plt.plot(result['Box X'], result['Box Y'], 'y+', alpha=0.5, ms=10)
+            plt.plot(targ_pix_im[0], targ_pix_im[1], 'rx', alpha=0.5)
+
+        if verbose:
             print(f"Alignment Box {i+1} results:")
-            print(f"  Star Position: {result['Star X']:.1f}, {result['Star Y']:.1f}")
+            print(f"  Sky Amplitude: {result['Sky Amplitude']:.0f} ADU")
             print(f"  Star Amplitude: {result['Star Amplitude']:.0f} ADU")
             print(f"  Star FWHM: {result['FWHM arcsec']:.2f}")
-            print(f"  Sky Amplitude: {result['Sky Amplitude']:.0f} ADU")
-        except:
-            print(f'Alignment Box {i+1} failed: {result}')
+            print(f"  Star Position: {star_pix[0]:.1f}, {star_pix[1]:.1f}")
+            print(f"  Target Position: {targ_pix[0]:.1f}, {targ_pix[1]:.1f}")
+            print(f"  Position Error: {pos_err[0]:+.2f}, {pos_err[1]:+.2f} arcsec")
+#         except:
+#             print(f'Alignment Box {i+1} failed: {result}')
 
         if plot == True:
             plt.xticks([], [])
             plt.yticks([], [])
 
+    # Calculate Transformation
+    A = fit_transforms(pixels, targets)
+    thetas = np.array([np.arcsin(A[0,1])*180/np.pi, np.arcsin(A[1,0])*-180/np.pi])
+    off_X = -A[2,0]*pixelscale
+    off_Y = -A[2,1]*pixelscale
+    off_R = -np.mean(thetas)
+    th_XY = 0.10
+    th_R = 0.030
+    send_X = off_X if abs(off_X) > th_XY else 0
+    send_Y = off_Y if abs(off_Y) > th_XY else 0
+    send_R = off_R if abs(off_R) > th_R else 0
+    print(f"       Calculated Thresh Send")
+    print(f"Offset X = {off_X:+.2f}  {th_XY:.2f}   {send_X:+.2f} arcsec")
+    print(f"Offset Y = {off_Y:+.2f}  {th_XY:.2f}   {send_Y:+.2f} arcsec")
+    print(f"Rotation = {off_R:+.3f} {th_R:.3f}  {send_R:+.3f} deg")
     if plot == True:
         plt.show()
 
