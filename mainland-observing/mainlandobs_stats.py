@@ -97,13 +97,14 @@ def main():
 #     tab.remove_rows(tab['Semester'] == 2017.0)
 
     ## Weight
-    count = {'Full Night': 1., 'Full': 1., 'First Half': 0.5, 'Second Half': 0.5,
-             'Other': 0.0, 'K1': 1., 'K2': 1., 'K1+K2': 2.}
+    count = {'Full Night': 1, 'Full': 1, 'First Half': 0.5, 'Second Half': 0.5,
+             'Other': 0, 'K1': 1, 'K2': 1, 'K1+K2': 2, 'None': 0}
     weight = [ count[x['Telescope']] * count[x['Portion']] * float(x['NumNights']) for x in tab ]
     unscaledweight = [ count[x['Telescope']] * float(x['NumNights']) for x in tab ]
     tab.add_column(Column(weight, name='Weight'))
     tab.add_column(Column(unscaledweight, name='Unscaled Weight'))
 
+#     print(tab[tab['Site'] == 'ANU'])
 
     ## ------------------------------------------------------------------------
     ## Number of Sites Over Time
