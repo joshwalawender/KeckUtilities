@@ -3,7 +3,7 @@
 ## Import General Tools
 import sys
 import os
-from gooey import Gooey, GooeyParser
+from argparse import ArgumentParser
 import re
 from datetime import datetime as dt
 from datetime import timedelta as tdelta
@@ -160,20 +160,19 @@ def compare_twilights():
 ##-------------------------------------------------------------------------
 ## Main Program
 ##-------------------------------------------------------------------------
-@Gooey
 def main():
     ##-------------------------------------------------------------------------
     ## Parse Command Line Arguments
     ##-------------------------------------------------------------------------
     ## create a parser object for understanding command-line arguments
-    parser = GooeyParser(
+    parser = ArgumentParser(
              description="Generates ICS file of support nights from telescope DB.")
     ## add arguments
 #     parser.add_argument('-s', '--sa',
 #         type=str, dest="sa", default='jwalawender',
 #         help='SA name. Use enough to make a search unique for the "Alias".')
     parser.add_argument('-s', '--sa',
-        type=str, dest="sa", help='SA alias.', widget='Dropdown',
+        type=str, dest="sa", help='SA alias.',
         choices=['jwalawender', 'arettura', 'calvarez', 'gdoppmann', 'jlyke',
                  'lrizzi', 'pgomez', 'randyc', 'syeh'])
     parser.add_argument('--sem', '--semester',

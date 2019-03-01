@@ -2,60 +2,6 @@
 
 A few utility scripts for use at Keck Observatory.
 
-## get_vnc_sessions.py
-
-This script can be used to open up VNC sessions:
-
-```
-python get_vnc_sessions.py [instrument numbered account]
-```
-
-The script will determine what instrument is being requested from the numbered account name, it will query a Keck server to determine which VNC server it should connect to and then it will open the VNC sessions corresponding to the control0, control1, and control2 desktops.  Other desktops can be opened via command line flags.  For example, to open the 3 analysis desktops, telstatus, telanalysis, and the appropriate kNstatus desktop as well:
-
-```
-python get_vnc_sessions.py [instrument numbered account] --analysis0 --analysis1 --analysis2 --telstatus --telanalysis --status
-```
-
-### Firewall authentication
-
-The script uses a configuration file to determine whether to authenticate through the Keck firewall or not.  An example configuration file (`keck_vnc_config.yaml`) is included in the repository.  To customize it for your installation, copy the example to `local_config.yaml` and edit.
-
-If the lines specifying the `firewall_address`, `firewall_port`, and `firewall_user` are uncommented and filled in with the appropriate info, the script will authenticate through the firewall before making the connection.
-
-### Passwords
-
-The script will query for the passwords it needs using the python `getpass` module.  A user outside of keck will need the password for firewall access (assuming they have filled out the firewall info in the configuration file), they will also need the password for the user account they specified when they invoked the script.  Finally, they will need the VNC password when their local VNC viewer asks for it.
-
-### VNC Viewers
-
-The configuration file contains the path to the VNC viewer executable on the local system.  The default config file contains the path for the `vncviewer` application from RealVNC on macOS at the current time.  Customize for your system as needed.  The script assumes that the command it needs to invoke is of the format:
-
-```
-[vncviewer command including path] [server]:[port]
-```
-
-If you wish to launch your VNCviewer application manually, put "None" in the configuration file for the `vncviewer` value.
-
-### Local Ports
-
-The program also allows you to configure which local ports to forward to.  If left unspecified, the ports will forward locally to the same port number as on the remote VNC server.  Specify the local ports to use in the configuration file using the `local_ports` setting a providing a list of port numbers.  For example:
-
-```
-local_ports: [5911, 5912, 5913, 5914, 5915, 5916, 5917, 5918, 5919]
-```
-
-### Closing Sessions
-
-The program will stop after opening the VNC sessions with the query:
-
-```
-Hit q to close down any SSH tunnels and firewall auth: 
-```
-
-Press `q` and _Enter_ and the program will close all VNC sessions, terminate any SSH tunnels which may have been opened, and close the firewall authentication.
-
-
-
 ## SupportNightCalendar.py
 
 Used to generate an ICS file (for use in typical calendar applications) of support nights.
@@ -65,25 +11,11 @@ To use, clone this repository to your machine:
 git clone https://github.com/joshwalawender/KeckUtilities.git
 ```
 
-You can run the program in either command line mode or GUI mode.
-
-### Command Line Mode
-
-From the resulting `KeckUtilities` directory, run:
+From the resulting `KeckUtilities/telescopeSchedule` directory, run:
 
 ```
-python SupportNightCalendar.py --ignore-gooey
+python SupportNightCalendar.py --sa jwalawender --semester 19A
 ```
-
-### GUI Mode
-
-To run as a GUI, you will need the [Gooey](https://github.com/chriskiehl/Gooey) python module.  Install it with either `pip install Gooey` or by cloning that repository and running the usual `python setup.py install`.
-
-If your system complains: "This program needs access to the screen" then you can either run in command line mode using the `--ignore-gooey` option or you can run it using:
-
-`pythonw SupportNightCalendar.py`
-
-which you can install via `conda install python.app` if you have conda.
 
 ### Program Output
 
@@ -102,7 +34,7 @@ Account: MOSFIRE(4)
 
 ### Options
 
-`--sa Josh`: Means that the program will search (in a case insensitive manner) for the string 'Josh' in the SA field in the database.  You only have to include enough of the SA's name to make it unique.
+`--sa jwalawender`: Means that the program will search for the SA jwalwender in the SA field in the database.  You must use the name as standardized in the database.
 
 `--semester 18A` or `--sem 18A`: Tells the program to look at the specified semester.  This overrides the `--start` and `--end` options below.
 
