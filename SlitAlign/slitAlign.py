@@ -162,7 +162,19 @@ def fit_transforms(pixels, targets):
     A, res, rank, s = np.linalg.lstsq(X, Y, rcond=None)
     A[np.abs(A) < 1e-10] = 0
 
-    return A
+    # Check Scale
+    thetas = np.array([np.arcsin(A[0,1])*180/np.pi, np.arcsin(A[1,0])*-180/np.pi])
+    thetadiff = np.abs(thetas[0] - thetas[1])
+    Sx = A[0,0]/np.cos(np.mean(thetas)*np.pi/180)
+    Sy = A[1,1]/np.cos(np.mean(thetas)*np.pi/180)
+
+    print(f"Scale Factor: {Sx:.4f}, {Sy:.4f}")
+    off_X = -A[2,0]
+    off_Y = -A[2,1]
+    off_R = -np.mean(thetas)
+    err_R = thetadiff/2
+
+    return (off_X, off_Y, off_R, err_R, A)
 
 
 
@@ -458,20 +470,21 @@ def analyze_image(imagefile, dark=None, flat=None, box_size=30, medfilt=False,
             plt.yticks([], [])
 
     # Calculate Transformation
-    A = fit_transforms(pixels, targets)
-    thetas = np.array([np.arcsin(A[0,1])*180/np.pi, np.arcsin(A[1,0])*-180/np.pi])
-    off_X = -A[2,0]*pixelscale
-    off_Y = -A[2,1]*pixelscale
-    off_R = -np.mean(thetas)
+    off_Xpix, off_Ypix, off_R, err_R, A = fit_transforms(pixels, targets)
+
+    off_X = off_Xpix * pixelscale
+    off_Y = off_Ypix * pixelscale
     th_XY = 0.10
     th_R = 0.030
     send_X = off_X if abs(off_X) > th_XY else 0
     send_Y = off_Y if abs(off_Y) > th_XY else 0
     send_R = off_R if abs(off_R) > th_R else 0
-    print(f"       Calculated Thresh Send")
-    print(f"Offset X = {off_X:+.2f}  {th_XY:.2f}   {send_X:+.2f} arcsec")
-    print(f"Offset Y = {off_Y:+.2f}  {th_XY:.2f}   {send_Y:+.2f} arcsec")
-    print(f"Rotation = {off_R:+.3f} {th_R:.3f}  {send_R:+.3f} deg")
+    print()
+    print(f"       Calculated   Err  Send        (Threshold)")
+    print(f"Offset X =  {off_X:+.2f}       {send_X:+.2f} arcsec ({th_XY:.2f})")
+    print(f"Offset Y =  {off_Y:+.2f}       {send_Y:+.2f} arcsec ({th_XY:.2f})")
+    print(f"Rotation = {off_R:+.3f} {err_R:.3f} {send_R:+.3f} deg   ({th_R:.3f})")
+
     if plot == True:
         plt.show()
 
