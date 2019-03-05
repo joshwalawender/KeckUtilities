@@ -42,6 +42,8 @@ Account: MOSFIRE(4)
 
 `--end 2018-01-31`: Tells the program to look at the schedule until that end date (the end of S17B in this example) and generate calendar entries for that time period.
 
+`--file` or `-f`: Override the default filename of 'Nights.ics' and write the output to the specified file (include path if desired).
+
 ### Example ICS Entry
 
 ```

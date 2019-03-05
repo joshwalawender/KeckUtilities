@@ -2,7 +2,7 @@
 
 ## Import General Tools
 import sys
-import os
+from pathlib import Path
 from argparse import ArgumentParser
 import re
 from datetime import datetime as dt
@@ -21,7 +21,7 @@ class ICSFile(object):
     Class to represent an ICS calendar file.
     '''
     def __init__(self, filename):
-        self.file = filename
+        self.file = Path(filename)
         self.lines = ['BEGIN:VCALENDAR\n',
                       'PRODID:-//hacksw/handcal//NONSGML v1.0//EN\n',
                       '\n']
@@ -60,11 +60,9 @@ class ICSFile(object):
 
     def write(self):
         self.lines.append('END:VCALENDAR\n')
-        if os.path.exists(self.file): os.remove(self.file)
-        with open(self.file, 'w') as FO:
-            for line in self.lines:
-                FO.write(line)
-            
+        if self.file.expanduser().exists():
+            os.remove(self.file.expanduser())
+        self.file.write_text(''.join(self.lines))
 
 
 ##-------------------------------------------------------------------------
@@ -178,6 +176,10 @@ def main():
     parser.add_argument('--sem', '--semester',
         type=str, dest="semester",
         help="Semester (e.g. '18B')")
+    parser.add_argument('-f', '--file',
+        type=str, dest="file",
+        default='Nights.ics',
+        help="Filename (including path if desired) to write to")
     parser.add_argument('-b', '--begin',
         type=str, dest="begin", #widget='DateChooser',
         help="Start date in YYYY-mm-dd format.")
@@ -235,7 +237,7 @@ def main():
     ##-------------------------------------------------------------------------
     ## Create Output iCal File
     ##-------------------------------------------------------------------------
-    ical_file = ICSFile('Nights.ics')
+    ical_file = ICSFile(args.file)
     month_night_count = {}
     month_nights = {1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30,
                     7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
