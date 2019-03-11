@@ -255,7 +255,7 @@ def main():
         if len(progsbytel.groups) > 1:
             dual_support_count += 1
 
-        print(f"  Creating calendar entry for {date}")
+#         print(f"  Creating calendar entry for {date}")
         month = date[:7]
         if month in month_night_count.keys():
             month_night_count[month] += 1
@@ -277,6 +277,7 @@ def main():
             else:
                 title = f"{'/'.join(instruments)} {supporttype}"
 #             calstart = (twilights['seto']-tdelta(0,10*60*60)).strftime('%Y%m%dT%H%M00')
+            print(f"  {date}: {title}")
             calstart = f"{twilights['udate'].replace('-', '')}"\
                        f"T{twilights['sunset HST'].replace(':', '')}00"
             calend = f"{date.replace('-', '')}T230000"
