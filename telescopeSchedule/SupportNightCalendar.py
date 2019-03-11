@@ -311,48 +311,6 @@ def main():
         print(f"  For {month}: {nsupport:2d} / {nnights:2d} nights ({100*nsupport/nnights:4.1f} %)")
 
 
-
-
-
-
-#     for entry in telsched:
-#         found = re.search(args.sa.lower(), entry['SA'].lower())
-#         if found is not None:
-#             night_count += 1
-#             month = entry['Date'][:7]
-#             if month in month_night_count.keys():
-#                 month_night_count[month] += 1
-#             else:
-#                 month_night_count[month] = 1
-#             supporttype = determine_type(entry, telsched, args)
-#             if supporttype.find('Split Night') > 0:
-#                 split_night_count += 1
-#             title = '{} {} ({})'.format(entry['Instrument'], supporttype, entry['Location'])
-#             twilight = parse_twilight(entry)
-#             calend = '{}T{}'.format(entry['Date'].replace('-', ''), '230000')
-#             description = [title,
-#                            f"Sunset @ {twilight['sunsetstr']}",
-#                            f"12 deg Twilight @ {twilight['dusk_12degstr']}",
-#                            f"12 deg Twilight @ {twilight['dawn_12degstr']}",
-#                            f"Sunrise @ {twilight['sunrisestr']}",
-#                            f"PI: {entry['Principal']}",
-#                            f"Observers: {entry['Observers']}",
-#                            f"Location: {entry['Location']}",
-#                            f"Account: {entry['InstrAcc']}",
-#                            ]
-#             print(f"{entry['Date']:10s} K{entry['TelNr']:d} {title:s}")
-#             ical_file.add_event(title, twilight['sunset'].strftime('%Y%m%dT%H%M%S'),
-#                                 calend, description)
-#     ical_file.write()
-#     print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
-#     print(f"Found {split_night_count:d} split nights")
-# 
-#     for month in month_night_count:
-#         nsupport = month_night_count[month]
-#         nnights = month_nights[int(month[-2:])]
-#         print(f"  For {month}: {nsupport:2d} / {nnights:2d} nights ({100*nsupport/nnights:4.1f} %)")
-
-
 if __name__ == '__main__':
     main()
 
