@@ -266,17 +266,19 @@ def main():
 
         # Loop over both telNr if needed
         for idx in range(len(progsbytel.groups)):
+            tonight = progsbytel.groups[idx]
+            tonight.sort('StartTime')
+
             supporttype = 'Support'
-            if len(progsbytel.groups[idx]) > 1:
+            if len(tonight) > 1:
                 supporttype = 'Split Night'
                 split_night_count += 1
 
-            instruments = list(progsbytel.groups[idx]['Instrument'])
+            instruments = list(tonight['Instrument'])
             if len(set(instruments)) == 1:
                 title = f"{instruments[0]} {supporttype}"
             else:
                 title = f"{'/'.join(instruments)} {supporttype}"
-#             calstart = (twilights['seto']-tdelta(0,10*60*60)).strftime('%Y%m%dT%H%M00')
             print(f"  {date}: {title}")
             calstart = f"{twilights['udate'].replace('-', '')}"\
                        f"T{twilights['sunset HST'].replace(':', '')}00"
@@ -285,6 +287,7 @@ def main():
                            f"Sunset: {twilights['sunset']} UT",
                            f"12deg:  {twilights['dusk_12deg']} UT",
                            ]
+
             for entry in progsbytel.groups[idx]:
                 obslist = entry['Observers'].split(',')
                 loclist = entry['Location'].split(',')
