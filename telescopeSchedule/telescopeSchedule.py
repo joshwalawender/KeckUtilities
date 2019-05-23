@@ -77,5 +77,15 @@ def add_SA_to_telsched(telsched):
     return telsched
 
 
+def get_instrument_location(instrument, date=None):
+    if date is None:
+        dateobj = dt.now()
+        date = dateobj.strftime('%Y-%m-%d')
+    req = f"cmd=getInstrumentStatus&date={date}"
+    results = querydb(req)[0]
+    location = results[instrument]['Location']
+    return location
+
+
 if __name__ == '__main__':
     pass
