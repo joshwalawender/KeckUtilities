@@ -30,12 +30,13 @@ args = p.parse_args()
 ##-------------------------------------------------------------------------
 def main():
     if args.date is None:
-        dateobj = dt.utcnow()
+        dateobj = dt.now()
     else:
         dateobj = dt.strptime(args.date, '%Y-%m-%d')
     misscount = 0
     maxmisses = 1
     done = False
+    foundrun = False
     print('##################################################')
     while not done:
         date = dateobj.strftime('%Y-%m-%d')
@@ -43,6 +44,12 @@ def main():
         print(f"# Checking telescope schedule for {date_name}")
 
         found_sa = [(args.sa == get_SA(date=date, tel=tel)) for tel in [1,2]]
+        if np.any(found_sa) and not foundrun:
+            foundrun = True
+        elif not np.any(found_sa) and foundrun:
+            misscount += 1
+        if misscount > maxmisses:
+            done = True
 
         for tel in [1,2]:
             if found_sa[tel-1]:
@@ -61,7 +68,7 @@ def main():
                         email_list = []
                     email_list.extend( [u['Email'] for u in observers_info\
                         if u['Email'] != prog['PiEmail'] ] )
-                    print(', '.join(email_list))
+                    print('To: ' + ', '.join(email_list))
 
                     email = f"Keck {prog['Instrument']} observing on "
                     email += f"{date_name}\n\n"
@@ -79,19 +86,11 @@ def main():
                     email += "up in the afternoon to start setup and cals.\n\n"
                     email += "cheers,\n"
                     email += "Josh\n"
-#                     email += "--\n"
-#                     email += "Josh Walawender\n"
-#                     email += "Staff Astronomer, W. M. Keck Observatory\n"
-#                     email += "www.keckobservatory.org\n"
                     print('--------------------------------------------------')
                     print(email)
                     print('##################################################')
 
 
-        if found_sa[0] is False and found_sa[1] is False:
-            misscount += 1
-        if misscount > maxmisses:
-            done = True
         dateobj += tdelta(1,0)
 
 

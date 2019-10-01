@@ -40,7 +40,12 @@ log.addHandler(LogConsoleHandler)
 def querydb(req):
     url = f"https://www.keck.hawaii.edu/software/db_api/telSchedule.php?{req}"
     r = requests.get(url)
-    return json.loads(r.text)
+    try:
+        result = json.loads(r.text)
+    except json.decoder.JSONDecodeError as e:
+        print(r.text)
+        raise(e)
+    return result
 
 
 def get_SA(date=None, tel=1):
@@ -85,6 +90,23 @@ def get_instrument_location(instrument, date=None):
     results = querydb(req)[0]
     location = results[instrument]['Location']
     return location
+
+
+def get_observers_for_id(id):
+    req = f'cmd=getObservers&obsid={id}'
+    return querydb(req)
+
+
+def get_user_info(date, inst):
+    req = f'cmd=getUserInfo&instr={inst}&startdate={date}&enddate={date}'
+    return querydb(req)
+
+
+def get_observer_info(obsid):
+    '''cmd=getObserverInfo&obsid=#
+    '''
+    req = f"cmd=getObserverInfo&obsid={obsid}"
+    return querydb(req)
 
 
 if __name__ == '__main__':
