@@ -171,6 +171,7 @@ def main():
 #         help='SA name. Use enough to make a search unique for the "Alias".')
     parser.add_argument('-s', '--sa',
         type=str, dest="sa", help='SA alias.',
+        default='jwalawender',
         choices=['jwalawender', 'arettura', 'calvarez', 'gdoppmann', 'jlyke',
                  'lrizzi', 'pgomez', 'randyc', 'syeh'])
     parser.add_argument('--sem', '--semester',
