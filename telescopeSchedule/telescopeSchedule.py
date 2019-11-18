@@ -105,6 +105,13 @@ def get_user_info(date, inst):
 def get_observer_info(obsid):
     '''cmd=getObserverInfo&obsid=#
     '''
+    if obsid == '':
+        return {'Id': '',
+                'Email': '',
+                'FirstName': '',
+                'LastName': '',
+                'Phone': '',
+                'username': ''}
     req = f"cmd=getObserverInfo&obsid={obsid}"
     return querydb(req)
 
