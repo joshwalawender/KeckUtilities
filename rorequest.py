@@ -2,7 +2,7 @@
 
 ## Import General Tools
 import numpy as np
-
+from transitions import Machine
 
 ##-------------------------------------------------------------------------
 ## Site Info
@@ -55,6 +55,7 @@ class UCB(GenericSite):
 ## Request
 ##-------------------------------------------------------------------------
 class Request():
+
     def __init__(self, progid, night, siteinfo, used_instrument):
         '''
         From the program ID, we can pull the telescope schedule and verify the
@@ -76,11 +77,11 @@ class Request():
         self.night = night
         self.used_instrument = used_instrument
         self.sites = siteinfo
-        self.status = Requested()
         self.keck_approved = None
         self.keck_approval_email = 'mainland_observing@keck.hawaii.edu'
         self.nasa_approved = None if self.allocating_institution == 'NASA' else True
         self.nasa_approval_email = 'email@nasa.gov'
+        self.translator = {None: 'Pending', True: 'Approved', False: 'Denied'}
 
         # Make initial emails based on creation
         self.request_keck_approval()
@@ -89,6 +90,28 @@ class Request():
         for site in self.sites:
             if site.approved is None:
                 site.request_approval()
+
+        # Set up State Machine
+        states = ['Requested', 'Approved', 'Denied', 'Cancelled']
+        transitions = [
+                       [ 'deny', ['Requested', 'Approved'], 'Denied' ],
+                       [ 'cancel', '*', 'Cancelled' ],
+                       [ 'all_approved', ['Requested', 'Denied'], 'Approved' ],
+                       [ 'remove_approval', ['Requested', 'Approved'], 'Requested']
+                      ]
+        self.machine = Machine(model=self, states=states, transitions=transitions,
+                          initial='Requested')
+
+
+    def print_status(self):
+        '''Prints approval status
+        '''
+        print(f"Approval Status:")
+        print(f"    Keck: {self.translator[self.keck_approved]}")
+        if self.allocating_institution == 'NASA':
+            print(f"NASA: {self.translator[self.nasa_approved]}")
+        for site in self.sites:
+            print(f"{site.name:>8s}: {self.translator[site.approved]}")
 
 
     def check_status(self):
@@ -104,12 +127,17 @@ class Request():
         self._approvals.append(self.nasa_approved)
         if np.all(self._approvals) == True:
             print('Remote observing request approved')
-            self.status = Approved()
+            self.all_approved()
         elif np.any([(x == False) for x in self._approvals]):
             print('Remote observing request denied')
+            self.deny()
+        elif self.state == 'Approved' and np.any([(x == None) for x in self._approvals]):
+            print('Approval has been removed, resetting status to requested')
+            self.remove_approval()
         else:
-            print('Some approvals still pending')
-
+            self.print_status()
+        print(f"State = {self.state}")
+        print()
 
     def get_site(self, sitename):
         for i,site in enumerate(self.sites):
@@ -125,6 +153,8 @@ class Request():
 
     def request_nasa_approval(self):
         print(f'Requesting approval from NASA')
+
+
 
 
     ## ------------------------------------------------------------------------
@@ -148,7 +178,7 @@ class Request():
         self.check_status()
 
     def approval(self, sitename, approved):
-        print(f'Response recieved from {sitename}: {approved}')
+        print(f'Response from {sitename}: {self.translator[approved]}')
         if sitename.lower() == 'keck':
             self.keck_approved = approved
         elif sitename.lower() == 'nasa':
@@ -191,12 +221,12 @@ class Cancelled():
 ## Main
 ##-------------------------------------------------------------------------
 if __name__ == '__main__':
-    r = Request('K123', '2020-07-20',
-                [CIT('John Doe', True), IfA('Jane Doe', True)],
-                True)
+    r = Request('K123', '2020-07-20', [CIT('John Doe', True), IfA('Jane Doe', True)], True)
+    print(f"State = {r.state}")
+    print()
     r.approval('keck', True)
-    r.approval('nasa', True)
     r.approval('cit', True)
     r.approval('ifa', True)
     r.approval('ifa', None)
-    
+    r.approval('ifa', False)
+    r.approval('ifa', True)
