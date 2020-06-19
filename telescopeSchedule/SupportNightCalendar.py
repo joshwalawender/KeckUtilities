@@ -235,6 +235,9 @@ def main():
     telsched = add_SA_to_telsched(telsched)
     print('Done')
 
+    zoomnrs = {1: 'https://keckobservatory.zoom.us/my/k1controlroom',
+               2: 'https://keckobservatory.zoom.us/my/k2controlroom'}
+
     ##-------------------------------------------------------------------------
     ## Create Output iCal File
     ##-------------------------------------------------------------------------
@@ -290,6 +293,7 @@ def main():
                            ]
 
             for entry in progsbytel.groups[idx]:
+                telNr = int(entry['TelNr'])
                 obslist = entry['Observers'].split(',')
                 loclist = entry['Location'].split(',')
                 assert len(obslist) == len(loclist)
@@ -299,6 +303,7 @@ def main():
                 description.append(f"PI: {entry['Principal']}")
                 description.append(f"Observers: {', '.join(observers)}")
                 description.append(f"Start Time: {entry['StartTime']}")
+                description.append(f"Zoom: {zoomnrs[telNr]}")
 
             description.append('')
             description.append(f"12deg:  {twilights['dawn_12deg']} UT")
