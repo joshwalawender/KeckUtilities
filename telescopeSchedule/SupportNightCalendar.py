@@ -27,7 +27,8 @@ class ICSFile(object):
                       '\n']
 
 
-    def add_event(self, title, starttime, endtime, description, verbose=False):
+    def add_event(self, title, starttime, endtime, description, alarm=15,
+                  verbose=False):
         assert type(title) is str
         assert type(starttime) in [dt, str]
         assert type(endtime) in [dt, str]
@@ -52,9 +53,16 @@ class ICSFile(object):
                      'DTEND;TZID=Pacific/Honolulu:{}\n'.format(endtime),
                      'SUMMARY:{}\n'.format(title),
                      'DESCRIPTION: {}\n'.format(description),
-                     'END:VEVENT\n',
-                     '\n',
                      ]
+        if alarm is not None:
+            new_lines.extend( ['BEGIN:VALARM\n',
+                               f'TRIGGER:-PT{int(alarm):d}M\n',
+                               'ACTION:DISPLAY\n',
+                               'DESCRIPTION:Reminder\n',
+                               'END:VALARM\n',
+                               ] )
+        new_lines.extend( ['END:VEVENT\n', '\n' ] )
+
         self.lines.extend(new_lines)
 
 
@@ -284,6 +292,7 @@ def main():
             else:
                 title = f"{'/'.join(instruments)} {supporttype}"
             print(f"  {date}: {title}")
+
             calstart = f"{twilights['udate'].replace('-', '')}"\
                        f"T{twilights['sunset HST'].replace(':', '')}00"
             calend = f"{date.replace('-', '')}T230000"
@@ -309,6 +318,12 @@ def main():
             description.append(f"12deg:  {twilights['dawn_12deg']} UT")
             description.append(f"Sunrise: {twilights['sunrise']} UT")
 
+            # Add afternoon support entry
+            ical_file.add_event('Afternoon Support',
+                                f"{date.replace('-', '')}T150000",
+                                f"{date.replace('-', '')}T170000",
+                                f"Zoom: {zoomnrs[telNr]}")
+            # Add night support entry
             ical_file.add_event(title, calstart, calend, description)
 
     ical_file.write()
