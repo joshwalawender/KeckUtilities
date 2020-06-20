@@ -322,7 +322,7 @@ def main():
             ical_file.add_event('Afternoon Support',
                                 f"{date.replace('-', '')}T150000",
                                 f"{date.replace('-', '')}T170000",
-                                f"Zoom: {zoomnrs[telNr]}")
+                                description)
             # Add night support entry
             ical_file.add_event(title, calstart, calend, description)
 
