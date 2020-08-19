@@ -179,9 +179,7 @@ def main():
 #         help='SA name. Use enough to make a search unique for the "Alias".')
     parser.add_argument('-s', '--sa',
         type=str, dest="sa", help='SA alias.',
-        default='jwalawender',
-        choices=['jwalawender', 'arettura', 'calvarez', 'gdoppmann', 'jlyke',
-                 'lrizzi', 'pgomez', 'randyc', 'syeh'])
+        default='jwalawender')
     parser.add_argument('--sem', '--semester',
         type=str, dest="semester",
         help="Semester (e.g. '18B')")
@@ -250,6 +248,7 @@ def main():
     ## Create Output iCal File
     ##-------------------------------------------------------------------------
     ical_file = ICSFile(args.file)
+    afternoon_ical_file = ICSFile(args.file.replace('.ics', '_afternoon.ics'))
     month_night_count = {}
     month_nights = {1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30,
                     7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
@@ -319,14 +318,15 @@ def main():
             description.append(f"Sunrise: {twilights['sunrise']} UT")
 
             # Add afternoon support entry
-            ical_file.add_event('Afternoon Support',
-                                f"{date.replace('-', '')}T150000",
-                                f"{date.replace('-', '')}T170000",
-                                description)
+            afternoon_ical_file.add_event(f'Afternoon Support',
+                                          f"{date.replace('-', '')}T150000",
+                                          f"{date.replace('-', '')}T170000",
+                                          description)
             # Add night support entry
             ical_file.add_event(title, calstart, calend, description)
 
     ical_file.write()
+    afternoon_ical_file.write()
     print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
     print(f"Found {split_night_count:d} split nights")
 
