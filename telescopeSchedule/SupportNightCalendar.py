@@ -27,7 +27,8 @@ class ICSFile(object):
                       '\n']
 
 
-    def add_event(self, title, starttime, endtime, description, alarm=15,
+    def add_event(self, title, starttime, endtime, description,
+                  location='', alarm=15,
                   verbose=False):
         assert type(title) is str
         assert type(starttime) in [dt, str]
@@ -52,6 +53,7 @@ class ICSFile(object):
                      'DTSTART;TZID=Pacific/Honolulu:{}\n'.format(starttime),
                      'DTEND;TZID=Pacific/Honolulu:{}\n'.format(endtime),
                      'SUMMARY:{}\n'.format(title),
+                     'LOCATION:{}\n'.format(location),
                      'DESCRIPTION: {}\n'.format(description),
                      ]
         if alarm is not None:
@@ -241,8 +243,10 @@ def main():
     telsched = add_SA_to_telsched(telsched)
     print('Done')
 
-    zoomnrs = {1: 'https://keckobservatory.zoom.us/my/k1controlroom',
-               2: 'https://keckobservatory.zoom.us/my/k2controlroom'}
+#     zoomnrs = {1: 'https://keckobservatory.zoom.us/my/k1controlroom',
+#                2: 'https://keckobservatory.zoom.us/my/k2controlroom'}
+    zoomnrs = {1: 'https://keckobservatory.zoom.us/j/8088813714?pwd=eGM3aDhlMHdKd1F0LzY4N2kzSjhJdz09',
+               2: 'https://keckobservatory.zoom.us/j/8088813729?pwd=WFJWTGk5cm4xeVlQdXdhWUZsZVdnQT09'}
 
     ##-------------------------------------------------------------------------
     ## Create Output iCal File
@@ -321,9 +325,11 @@ def main():
             afternoon_ical_file.add_event(f'Afternoon Support',
                                           f"{date.replace('-', '')}T150000",
                                           f"{date.replace('-', '')}T170000",
-                                          description)
+                                          description,
+                                          location=zoomnrs[telNr])
             # Add night support entry
-            ical_file.add_event(title, calstart, calend, description)
+            ical_file.add_event(title, calstart, calend, description,
+                                location=zoomnrs[telNr])
 
     ical_file.write()
     afternoon_ical_file.write()
