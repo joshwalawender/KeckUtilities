@@ -81,7 +81,7 @@ if __name__ == '__main__':
     for i,yeardata in enumerate(by_year.groups):
         year = int(f'20{by_year.groups.keys[i][0]}')
         plt.plot(yeardata['ROTPOSN'], yeardata['EL'], f'{colors[year]}o',
-                 alpha=0.20, label=year)
+                 alpha=0.20, label=f'{year} ({len(yeardata)} errors)')
     plt.title('MOSFIRE CSU Fatal Errors')
     plt.xlabel('ROTPOSN')
     plt.ylabel('EL')
