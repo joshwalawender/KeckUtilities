@@ -77,7 +77,7 @@ if __name__ == '__main__':
     plt.figure(figsize=(12,8))
 
     by_year = fatal_errors.group_by('year')
-    colors = {2015: 'k', 2016: 'o', 2017: 'y', 2018: 'b', 2019: 'g', 2020: 'r'}
+    colors = {2015: 'k', 2016: 'k', 2017: 'y', 2018: 'b', 2019: 'g', 2020: 'r'}
     for i,yeardata in enumerate(by_year.groups):
         year = int(f'20{by_year.groups.keys[i][0]}')
         plt.plot(yeardata['ROTPOSN'], yeardata['EL'], f'{colors[year]}o',
