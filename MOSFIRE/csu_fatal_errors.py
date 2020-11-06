@@ -81,16 +81,13 @@ if __name__ == '__main__':
     for i,yeardata in enumerate(by_year.groups):
         year = int(f'20{by_year.groups.keys[i][0]}')
         plt.plot(yeardata['ROTPOSN'], yeardata['EL'], f'{colors[year]}o',
-                 alpha=0.15, label=year)
-
+                 alpha=0.20, label=year)
+    plt.title('MOSFIRE CSU Fatal Errors')
     plt.xlabel('ROTPOSN')
     plt.ylabel('EL')
     plt.yticks(np.arange(0,100,10))
-    plt.xticks(np.arange(-270,100,45))
+    plt.xticks(np.arange(-270,225,45))
     plt.grid()
     plt.legend(loc='best')
     plt.ylim(-1,91)
-
-    figfile = Path('csu_fatal_errors.png')
-    if figfile.exists() is True: figfile.unlink()
-    plt.savefig(figfile, dpi=72, bbox_inches='tight', pad_inches=0.10)
+    plt.savefig('csu_fatal_errors.png')
