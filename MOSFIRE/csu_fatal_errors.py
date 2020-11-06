@@ -22,15 +22,20 @@ def read_logs_for_fatal_errors():
     match_str = '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+) \[mosfire\] DEBUG edu.ucla.astro.irlab.util.Property - Setting property <CSUStatus> to new value <FATAL ERROR >.'
 
 #     years = ['15', '16', '17', '18', '19', '20']
-    years = [18, 19, 20]
+    years = [15, 16, 17, 18, 19, 20]
     for year in years:
         nlogs = len([x for x in path_eavesdrop.glob(f'{year:02d}*.log')])
         print(f'Reading {nlogs} logs for 20{year}')
         for log_eavesdrop in path_eavesdrop.glob(f'{year}*.log'):
-#             print(f'  Reading {log_eavesdrop}')
-            with open(log_eavesdrop) as log_file:
-                log_contents = log_file.read()
-                lines = log_contents.split('\n')
+
+            try:
+                with open(log_eavesdrop) as log_file:
+                    log_contents = log_file.read()
+                    lines = log_contents.split('\n')
+            except:
+                print(f'  Failed to read {log_eavesdrop}')
+                lines = []
+
             for line in lines:
                 is_fatal_error = re.match(match_str, line)
                 if is_fatal_error is not None:
