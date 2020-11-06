@@ -90,4 +90,7 @@ if __name__ == '__main__':
     plt.grid()
     plt.legend(loc='best')
     plt.ylim(-1,91)
-    plt.show()
+
+    figfile = Path('csu_fatal_errors.png')
+    if figfile.exists() is True: figfile.unlink()
+    plt.savefig(figfile, dpi=72, bbox_inches='tight', pad_inches=0.10)
