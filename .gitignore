@@ -5,3 +5,4 @@ starlist.txt
 output.txt
 __pycache__
 local_config.yaml
+csu_fatal_errors.txt
