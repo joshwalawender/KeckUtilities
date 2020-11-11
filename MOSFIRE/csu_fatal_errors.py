@@ -21,7 +21,6 @@ def read_logs_for_fatal_errors():
     path_eavesdrop = Path('/s/sdata1300/logs/gui/eavesdrop/')
     match_str = '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+) \[mosfire\] DEBUG edu.ucla.astro.irlab.util.Property - Setting property <CSUStatus> to new value <FATAL ERROR >.'
 
-#     years = ['15', '16', '17', '18', '19', '20']
     years = [15, 16, 17, 18, 19, 20]
     for year in years:
         nlogs = len([x for x in path_eavesdrop.glob(f'{year:02d}*.log')])
@@ -45,7 +44,8 @@ def read_logs_for_fatal_errors():
                            'ROTMODE', 'ROTPOSN', 'EL',
                            '-window', '1s', '-csv',
                            '-date', timestamp.strftime('%Y-%m-%dT%H:%M:%S')]
-                    output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE)
 
                     try:
                         contents = output.stdout.decode()
@@ -82,6 +82,9 @@ if __name__ == '__main__':
         year = int(f'20{by_year.groups.keys[i][0]}')
         plt.plot(yeardata['ROTPOSN'], yeardata['EL'], f'{colors[year]}o',
                  alpha=0.20, label=f'{year} ({len(yeardata)} errors)')
+    plt.axvspan(-190,-170, color='r', alpha=0.2)
+    plt.axvspan(-10,10, color='r', alpha=0.2)
+    plt.axvspan(170,190, color='r', alpha=0.2)
     plt.title('MOSFIRE CSU Fatal Errors')
     plt.xlabel('ROTPOSN')
     plt.ylabel('EL')
