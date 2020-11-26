@@ -286,7 +286,7 @@ def main():
 
             supporttype = 'Support'
             if len(tonight) > 1:
-                supporttype = 'Split Night'
+                supporttype = 'Split Night Support'
                 split_night_count += 1
 
             instruments = list(tonight['Instrument'])
