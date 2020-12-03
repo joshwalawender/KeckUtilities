@@ -19,19 +19,20 @@ def check_for_transition(line, status, pattern, new_state):
     matched = pattern.match(line)
     if matched is not None:
         transition_time = datetime.strptime(matched.group(1), '%Y-%m-%d %H:%M:%S,%f')
-        duration = (transition_time-status[1]).total_seconds()/60
+        duration = (transition_time-status[1]).total_seconds()
         dcs1 = get_dcs_keywords(status[1])
         dcs2 = get_dcs_keywords(transition_time)
         history_entry = {'status': status[0],
                          'begin': status[1],
                          'end': transition_time,
-                         'duration (min)': duration,
+                         'duration (s)': duration,
                          'xaccels': -1,
                          'yaccels': -1,
                          'accel age (s)': -1,
                          'ROTPOSN': dcs1['ROTPOSN'],
                          'ROTPOSN end': dcs2['ROTPOSN'],
                          'bad': dcs1['bad'],
+                         'nbars': 0,
                          }
         return (new_state, transition_time), history_entry
     else:
@@ -53,11 +54,14 @@ def parse_eavesdrop_log(logfile):
 
     pxaccel = re.compile(match_str+'<CSUXAccelerometer> to new value <(\d+)>')
     pyaccel = re.compile(match_str+'<CSUYAccelerometer> to new value <(\d+)>')
-    pstart_setup = re.compile(match_str+'<CSUSetupMaskName> to new value <(\w+)>')
-    pend_setup = re.compile(match_str+'<CSUSetupMaskName> to new value <(\w+)>')
+
+    pstart_setup = re.compile(match_str+'<CSUSetupMaskName> to new value <(.+)>')
+    pbartarget = re.compile(match_str+'<CSUBarTargetPosition(\d\d)> to new value <([\d\.]+)>.')
+    pend_setup = re.compile(match_str+'<CSUStatus> to new value <Setup complete.>')
 
     pstart_move = re.compile(match_str+'<CSUStatus> to new value <Starting group move.>')
-    pend_move = re.compile(match_str+'<CSUStatus> to new value <Performing multiple bar move: 100% complete.>')
+    pbarmoving = re.compile(match_str+'<CSUBarStatus(\d+)> to new value <MOVING>.')
+    pend_move = re.compile(match_str+'<CSUStatus> to new value <Move completed.  Ready for next move.>')
     pfatal_error = re.compile(match_str+'<CSUStatus> to new value <FATAL ERROR >')
     ppower_down = re.compile(match_str+'<CSUStatus> to new value <Powering down CSU system>')
     pinitialize = re.compile(match_str+'<CSUStatus> to new value <Bar initialization command sent.>')
@@ -66,9 +70,11 @@ def parse_eavesdrop_log(logfile):
     status_history = list()
     xaccels = 0
     yaccels = 0
-
+    moving_bars = []
     status = None
     for line in lines:
+#         print(line)
+
         if status is None:
             mstart_time = re.match('(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+) \[', line)
             if mstart_time is not None:
@@ -94,6 +100,14 @@ def parse_eavesdrop_log(logfile):
             history_entry['yaccels'] = yaccels
             history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
             status_history.append(history_entry)
+            moving_bars = []
+
+        # Check for new BarTarget
+#         if status is not None:
+#             if status[0] == 'Setup':
+#                 matched = pbartarget.match(line)
+#                 if matched is not None:
+#                     moving_bars.append(matched.group(2))
 
         # Check for setup end
         status, history_entry = check_for_transition(line, status, pend_setup, 'Idle')
@@ -110,10 +124,20 @@ def parse_eavesdrop_log(logfile):
             history_entry['yaccels'] = yaccels
             history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
             status_history.append(history_entry)
+            moving_bars = []
+
+        # Count moving bars
+        if status is not None:
+            if status[0] == 'Moving':
+                matched = pbarmoving.match(line)
+                if matched is not None:
+                    moving_bars.append(matched.group(2))
 
         # Check for move end
         status, history_entry = check_for_transition(line, status, pend_move, 'Idle')
         if history_entry is not None:
+            history_entry['nbars'] = len(moving_bars)
+            moving_bars = []
             history_entry['xaccels'] = xaccels
             history_entry['yaccels'] = yaccels
             history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
@@ -122,6 +146,9 @@ def parse_eavesdrop_log(logfile):
         # Check for fatal error
         status, history_entry = check_for_transition(line, status, pfatal_error, 'Error')
         if history_entry is not None:
+            if history_entry['status'] == 'Moving':
+                history_entry['nbars'] = len(moving_bars)
+                moving_bars = []
             history_entry['xaccels'] = xaccels
             history_entry['yaccels'] = yaccels
             history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
@@ -318,23 +345,36 @@ def old_main():
     plt.savefig('csu_fatal_errors.png')
 
 
+def plot_rotator(history_table):
+    plt.figure(figsize=(12,12))
+#     plt.plot
+
+
+
 if __name__ == '__main__':
-    path_eavesdrop = Path('/s/sdata1300/logs/gui/eavesdrop/')
+
+    history_file = Path('history_table.txt')
     fatal_errors = list()
     status_history = list()
 
-    years = [15, 16, 17, 18, 19, 20]
-    years = [20]
-    for year in years:
-        nlogs = len([x for x in path_eavesdrop.glob(f'{year:02d}*.log')])
-        print(f'Reading {nlogs} logs for 20{year}')
-        for log_eavesdrop in path_eavesdrop.glob(f'{year}*.log'):
-            status = parse_eavesdrop_log(log_eavesdrop)
-            status_history.extend( status )
+    if history_file.exists() is False:
+        path_eavesdrop = Path('/s/sdata1300/logs/gui/eavesdrop/')
+#         status = parse_eavesdrop_log(path_eavesdrop.joinpath('201129_1803_eavesdrop.log'))
+#         status_history.extend( status )
 
-#     status = parse_eavesdrop_log(path_eavesdrop.joinpath('201129_1803_eavesdrop.log'))
-#     status_history.extend( status )
+#         years = [20]
+        years = [15, 16, 17, 18, 19, 20]
+        for year in years:
+            nlogs = len([x for x in path_eavesdrop.glob(f'{year:02d}*.log')])
+            print(f'Reading {nlogs} logs for 20{year}')
+            for log_eavesdrop in path_eavesdrop.glob(f'{year}*.log'):
+                status = parse_eavesdrop_log(log_eavesdrop)
+                status_history.extend( status )
 
-    history_table = Table(status_history)
-    print(history_table[(history_table['status'] != 'Idle') & (history_table['status'] != 'Moving') & (history_table['status'] != 'Setup')])
-    history_table.write('history_table.txt', format='ascii.fixed_width', overwrite=True)
+        history_table = Table(status_history)
+        print(history_table)
+        history_table.write(history_file, format='ascii.fixed_width', overwrite=True)
+
+    print(f'Reading: {history_file}')
+    history_table = Table.read(history_file, format='ascii.fixed_width')
+    print(history_table)
