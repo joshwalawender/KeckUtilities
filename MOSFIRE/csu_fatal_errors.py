@@ -146,6 +146,9 @@ def parse_eavesdrop_log(logfile):
         # Check for fatal error
         status, history_entry = check_for_transition(line, status, pfatal_error, 'Error')
         if history_entry is not None:
+            # Check what previous state was
+            if status_history[-1]['status'] not in ['Moving', 'PowerDown', 'Initialize'] and status_history[-1]['duration (s)'] < 100:
+                print(f'Fatal Error after: {status_history[-1]["status"]} ({status_history[-1]["duration (s)"]} s)')
             if history_entry['status'] == 'Moving':
                 history_entry['nbars'] = len(moving_bars)
                 moving_bars = []
@@ -263,94 +266,93 @@ def get_csu_keywords(timestamp):
 
 
 ##-------------------------------------------------------------------------
-## read_logs_for_fatal_errors
+## Plot: nbars in move vs. time (color code failures)
 ##-------------------------------------------------------------------------
-def old_read_logs_for_fatal_errors():
-    rotator = Table(names=('Date-Time', 'ROTMODE', 'ROTPOSN', 'EL', 'bad', 'year'),
-                    dtype=(np.dtype('S23'), np.dtype('S20'), np.float, np.float, np.bool, np.int))
+def plot_nbars(history_table):
+    print('Plotting nbars in move over time')
+    moves = history_table[history_table['status'] == 'Moving']
 
-    names = ['Date-Time', 'setupname', 'maskname']
-    dtype = [np.dtype('S23'), np.dtype('S23'), np.dtype('S23')]
-    names.extend( [f'B{i:02d}STAT' for i in range(1,93)] )
-    dtype.extend( [np.dtype('S10') for i in range(1,93)] )
-    names.extend( [f'B{i:02d}TARG' for i in range(1,93)] )
-    dtype.extend( [np.float for i in range(1,93)] )
-    names.extend( [f'B{i:02d}POS' for i in range(1,93)] )
-    dtype.extend( [np.float for i in range(1,93)] )
-    csu = Table(names=names, dtype=dtype)
-
-    path_eavesdrop = Path('/s/sdata1300/logs/gui/eavesdrop/')
-    match_str = ('(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+) \[mosfire\] DEBUG '
-                 'edu.ucla.astro.irlab.util.Property - Setting property '
-                 '<CSUStatus> to new value <FATAL ERROR >.')
-
-    table = list()
-    years = [15, 16, 17, 18, 19, 20]
-    for year in years:
-        nlogs = len([x for x in path_eavesdrop.glob(f'{year:02d}*.log')])
-        print(f'Reading {nlogs} logs for 20{year}')
-        for log_eavesdrop in path_eavesdrop.glob(f'{year}*.log'):
-
-            try:
-                with open(log_eavesdrop) as log_file:
-                    log_contents = log_file.read()
-                    lines = log_contents.split('\n')
-            except:
-                print(f'  Failed to read {log_eavesdrop}')
-                lines = []
-
-            for line in lines:
-                is_fatal_error = re.match(match_str, line)
-                if is_fatal_error is not None:
-                    timestamp = datetime.strptime(f'{is_fatal_error.group(1)}000',
-                                                  '%Y-%m-%d %H:%M:%S,%f')
-                    print(f'  Fatal error at {timestamp.strftime("%Y-%m-%d %H:%M:%S")}')
-                    csudata = get_csu_keywords(timestamp)
-                    dcsdata = get_dcs_keywords(timestamp)
-                    csudata.update(dcsdata)
-                    table.append(csudata)
-
-    return Table(table)
-
-
-def old_main():
-    table_filename = Path('fatal_errors.txt')
-    # Read logs and write table file
-    if table_filename.exists() is False:
-        table = read_logs_for_fatal_errors()
-        table.write(table_filename, format='ascii.csv')
-
-    # Make plot of Fatal Errors and Rotator Angle
-    table = Table.read(table_filename, format='ascii.csv')
-    print(table)
+    successful_moves = moves[moves['MoveFailed'] == 'False']
+    failed_moves = moves[moves['MoveFailed'] == 'True']
+    time_successful_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+                             for x in successful_moves['begin']]
+    time_failed_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+                         for x in failed_moves['begin']]
 
     plt.figure(figsize=(12,8))
-    by_year = table.group_by('year')
-    colors = {2015: 'k', 2016: 'k', 2017: 'y', 2018: 'b', 2019: 'g', 2020: 'r'}
-    for i,yeardata in enumerate(by_year.groups):
-        year = int(f'{by_year.groups.keys[i][0]}')
-        plt.plot(yeardata['ROTPOSN'], yeardata['EL'], f'{colors[year]}o',
-                 alpha=0.20, label=f'{year} ({len(yeardata)} errors)')
-    plt.axvspan(-190,-170, color='r', alpha=0.2)
-    plt.axvspan(-10,10, color='r', alpha=0.2)
-    plt.axvspan(170,190, color='r', alpha=0.2)
-    plt.title('MOSFIRE CSU Fatal Errors')
-    plt.xlabel('ROTPOSN')
-    plt.ylabel('EL')
-    plt.yticks(np.arange(0,100,10))
-    plt.xticks(np.arange(-270,225,45))
+    plt.plot(time_successful_moves, successful_moves['nbars'], 'go',
+             alpha=0.2, mew=0, label=f'Successful Moves ({len(successful_moves)})')
+    plt.plot(time_failed_moves, failed_moves['nbars'], 'rv',
+             alpha=0.4, ms=10, label=f'Failed Moves ({len(failed_moves)})')
+    plt.xlabel('Time')
+    plt.ylabel('Number of Bars')
+    plt.ylim(-1,93)
     plt.grid()
     plt.legend(loc='best')
-    plt.ylim(-1,91)
-    plt.savefig('csu_fatal_errors.png')
+
+    plt.show()
 
 
-def plot_rotator(history_table):
+##-------------------------------------------------------------------------
+## Plot: rotator position in move vs. time (color code failures)
+##-------------------------------------------------------------------------
+def plot_rotposn(history_table):
+    print('Plotting rotator position in move over time')
+    moves = history_table[history_table['status'] == 'Moving']
+    successful_moves = moves[moves['MoveFailed'] == 'False']
+    failed_moves = moves[moves['MoveFailed'] == 'True']
+    time_successful_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+                             for x in successful_moves['begin']]
+    time_failed_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+                         for x in failed_moves['begin']]
+    t0 = time_successful_moves[0]
+    t1 = time_successful_moves[-1]
+
+    plt.figure(figsize=(12,8))
+    plt.plot(time_successful_moves, successful_moves['ROTPOSN'], 'go',
+             alpha=0.2, mew=0, label=f'Successful Moves ({len(successful_moves)})')
+    plt.plot(time_failed_moves, failed_moves['ROTPOSN'], 'rv',
+             alpha=0.4, ms=10, label=f'Failed Moves ({len(failed_moves)})')
+    plt.axhspan(170, 190, xmin=0, xmax=1, color='r', alpha=0.2)
+    plt.axhspan(-10, 10, xmin=0, xmax=1, color='r', alpha=0.2)
+    plt.axhspan(-190, -170, xmin=0, xmax=1, color='r', alpha=0.2)
+    plt.axhspan(-370, -350, xmin=0, xmax=1, color='r', alpha=0.2)
+    plt.xlabel('Time')
+    plt.ylabel('ROTPOSN')
+    plt.grid()
+    plt.legend(loc='best')
+
+    plt.show()
+
+
+##-------------------------------------------------------------------------
+## Plot: 
+##-------------------------------------------------------------------------
+def plot_accel(history_table):
+    print('Plotting acceleration histograms')
+    moves = history_table[history_table['status'] == 'Moving']
+    successful_moves = moves[moves['MoveFailed'] == 'False']
+    failed_moves = moves[moves['MoveFailed'] == 'True']
+
     plt.figure(figsize=(12,12))
-#     plt.plot
+    plt.subplot(2,1,1)
+    plt.hist(successful_moves['xaccels'], bins=50, color='g', alpha=0.4)
+    plt.hist(failed_moves['xaccels'], bins=50, color='r')
+    plt.xlabel('xaccel')
+    plt.ylabel('N moves')
+    plt.grid()
+    plt.subplot(2,1,2)
+    plt.hist(successful_moves['yaccels'], bins=50, color='g', alpha=0.4)
+    plt.hist(failed_moves['yaccels'], bins=50, color='r')
+    plt.xlabel('yaccel')
+    plt.ylabel('N moves')
+    plt.grid()
+    plt.show()
 
 
-
+##-------------------------------------------------------------------------
+## __main__
+##-------------------------------------------------------------------------
 if __name__ == '__main__':
 
     history_file = Path('history_table.txt')
@@ -365,16 +367,26 @@ if __name__ == '__main__':
 #         years = [20]
         years = [15, 16, 17, 18, 19, 20]
         for year in years:
-            nlogs = len([x for x in path_eavesdrop.glob(f'{year:02d}*.log')])
+            logfiles = [x for x in path_eavesdrop.glob(f'{year:02d}*.log')]
+            nlogs = len(logfiles)
             print(f'Reading {nlogs} logs for 20{year}')
-            for log_eavesdrop in path_eavesdrop.glob(f'{year}*.log'):
+            for log_eavesdrop in logfiles:
                 status = parse_eavesdrop_log(log_eavesdrop)
                 status_history.extend( status )
-
         history_table = Table(status_history)
-        print(history_table)
+        move_failed = np.zeros(len(history_table), dtype=bool)
+        for i,event in enumerate(history_table):
+            if event['status'] == 'Error':
+                last_status = history_table[i-1]['status']
+                if last_status == 'Moving':
+                    move_failed[i-1] = True
+        history_table.add_column(Column(move_failed, name='MoveFailed'))
         history_table.write(history_file, format='ascii.fixed_width', overwrite=True)
 
     print(f'Reading: {history_file}')
     history_table = Table.read(history_file, format='ascii.fixed_width')
     print(history_table)
+
+#     plot_nbars(history_table)
+#     plot_rotposn(history_table)
+    plot_accel(history_table)
