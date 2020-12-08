@@ -422,8 +422,8 @@ if __name__ == '__main__':
 #         status = parse_eavesdrop_log(path_eavesdrop.joinpath('201129_1803_eavesdrop.log'))
 #         status_history.extend( status )
 
-#         years = [20]
-        years = [15, 16, 17, 18, 19, 20]
+        years = [20]
+#         years = [15, 16, 17, 18, 19, 20]
         for year in years:
             logfiles = [x for x in path_eavesdrop.glob(f'{year:02d}*.log')]
             nlogs = len(logfiles)
