@@ -147,7 +147,8 @@ def parse_eavesdrop_log(logfile):
         status, history_entry = check_for_transition(line, status, pfatal_error, 'Error')
         if history_entry is not None:
             # Check what previous state was
-            if status_history[-1]['status'] not in ['Moving', 'PowerDown', 'Initialize'] and status_history[-1]['duration (s)'] < 100:
+            if status_history[-1]['status'] not in ['Moving', 'PowerDown', 'Initialize']\
+               and status_history[-1]['duration (s)'] < 100:
                 print(f'Fatal Error after: {status_history[-1]["status"]} ({status_history[-1]["duration (s)"]} s)')
             if history_entry['status'] == 'Moving':
                 history_entry['nbars'] = len(moving_bars)
@@ -266,10 +267,50 @@ def get_csu_keywords(timestamp):
 
 
 ##-------------------------------------------------------------------------
-## Plot: nbars in move vs. time (color code failures)
+## Plot: acceleration values histogram
+##-------------------------------------------------------------------------
+def plot_accel(history_table):
+    print('Plotting acceleration histograms')
+    moves = history_table[history_table['status'] == 'Moving']
+    successful_moves = moves[moves['MoveFailed'] == 'False']
+    failed_moves = moves[moves['MoveFailed'] == 'True']
+
+    plt.figure(figsize=(12,12))
+
+    bins = np.arange(0,10000,100)
+    plt.subplot(2,1,1)
+    plt.title('Acceleration Values')
+    plt.hist(successful_moves['xaccels'], bins=bins, color='g', alpha=0.4,
+             label='Successful Moves')
+    plt.hist(failed_moves['xaccels'], bins=bins, color='r',
+             label='Failed Moves')
+    plt.xlabel('xaccel')
+    plt.xlim(1000,9000)
+    plt.ylabel('N moves')
+    plt.legend(loc='best')
+    plt.grid()
+
+    plt.subplot(2,1,2)
+    plt.hist(successful_moves['yaccels'], bins=bins, color='g', alpha=0.4,
+             label='Successful Moves')
+    plt.hist(failed_moves['yaccels'], bins=bins, color='r',
+             label='Failed Moves')
+    plt.xlabel('yaccel')
+    plt.xlim(1000,9000)
+    plt.ylabel('N moves')
+    plt.legend(loc='best')
+    plt.grid()
+
+    plot_file = Path('acceleration_values.png')
+    plt.savefig(plot_file, bbox_inches='tight', pad_inches=0.10)
+#     plt.show()
+
+
+##-------------------------------------------------------------------------
+## Plot: nbars in move
 ##-------------------------------------------------------------------------
 def plot_nbars(history_table):
-    print('Plotting nbars in move over time')
+    print('Plotting nbars in move')
     moves = history_table[history_table['status'] == 'Moving']
 
     successful_moves = moves[moves['MoveFailed'] == 'False']
@@ -279,7 +320,23 @@ def plot_nbars(history_table):
     time_failed_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
                          for x in failed_moves['begin']]
 
-    plt.figure(figsize=(12,8))
+    plt.figure(figsize=(12,12))
+
+    plt.subplot(2,1,1)
+    plt.title('Number of Bars Moving')
+    bins = np.arange(0,92,1)
+    plt.hist(successful_moves['nbars'], bins=bins, color='g', alpha=0.4,
+             label='Successful Moves')
+    plt.hist(failed_moves['nbars'], bins=bins, color='r',
+             label='Failed Moves')
+    plt.xlabel('Number of Bars')
+    plt.ylabel('N Moves')
+    plt.xlim(0,93)
+    plt.legend(loc='best')
+    plt.grid()
+
+    plt.subplot(2,1,2)
+    plt.title('Behavior over Time')
     plt.plot(time_successful_moves, successful_moves['nbars'], 'go',
              alpha=0.2, mew=0, label=f'Successful Moves ({len(successful_moves)})')
     plt.plot(time_failed_moves, failed_moves['nbars'], 'rv',
@@ -290,14 +347,16 @@ def plot_nbars(history_table):
     plt.grid()
     plt.legend(loc='best')
 
-    plt.show()
+    plot_file = Path('number_of_bars_moving.png')
+    plt.savefig(plot_file, bbox_inches='tight', pad_inches=0.10)
+#     plt.show()
 
 
 ##-------------------------------------------------------------------------
 ## Plot: rotator position in move vs. time (color code failures)
 ##-------------------------------------------------------------------------
 def plot_rotposn(history_table):
-    print('Plotting rotator position in move over time')
+    print('Plotting rotator position in move')
     moves = history_table[history_table['status'] == 'Moving']
     successful_moves = moves[moves['MoveFailed'] == 'False']
     failed_moves = moves[moves['MoveFailed'] == 'True']
@@ -308,7 +367,28 @@ def plot_rotposn(history_table):
     t0 = time_successful_moves[0]
     t1 = time_successful_moves[-1]
 
-    plt.figure(figsize=(12,8))
+    plt.figure(figsize=(12,12))
+
+    plt.subplot(2,1,1)
+    plt.title('Rotator Angle')
+    bins = np.arange(-450,360,10)
+    plt.hist(successful_moves['ROTPOSN'], bins=bins, color='g', alpha=0.4,
+             label='Successful Moves')
+    plt.hist(failed_moves['ROTPOSN'], bins=bins, color='r',
+             label='Failed Moves')
+
+    plt.axvspan(170, 190, color='r', alpha=0.1)
+    plt.axvspan(-10, 10, color='r', alpha=0.1)
+    plt.axvspan(-190, -170, color='r', alpha=0.1)
+    plt.axvspan(-370, -350, color='r', alpha=0.1)
+
+    plt.xlabel('ROTPPOSN')
+    plt.xticks(np.arange(-390,390,30))
+    plt.ylabel('N Moves')
+    plt.legend(loc='best')
+    plt.grid()
+
+    plt.subplot(2,1,2)
     plt.plot(time_successful_moves, successful_moves['ROTPOSN'], 'go',
              alpha=0.2, mew=0, label=f'Successful Moves ({len(successful_moves)})')
     plt.plot(time_failed_moves, failed_moves['ROTPOSN'], 'rv',
@@ -319,35 +399,13 @@ def plot_rotposn(history_table):
     plt.axhspan(-370, -350, xmin=0, xmax=1, color='r', alpha=0.2)
     plt.xlabel('Time')
     plt.ylabel('ROTPOSN')
+    plt.yticks(np.arange(-450,390,90))
     plt.grid()
     plt.legend(loc='best')
 
-    plt.show()
-
-
-##-------------------------------------------------------------------------
-## Plot: 
-##-------------------------------------------------------------------------
-def plot_accel(history_table):
-    print('Plotting acceleration histograms')
-    moves = history_table[history_table['status'] == 'Moving']
-    successful_moves = moves[moves['MoveFailed'] == 'False']
-    failed_moves = moves[moves['MoveFailed'] == 'True']
-
-    plt.figure(figsize=(12,12))
-    plt.subplot(2,1,1)
-    plt.hist(successful_moves['xaccels'], bins=50, color='g', alpha=0.4)
-    plt.hist(failed_moves['xaccels'], bins=50, color='r')
-    plt.xlabel('xaccel')
-    plt.ylabel('N moves')
-    plt.grid()
-    plt.subplot(2,1,2)
-    plt.hist(successful_moves['yaccels'], bins=50, color='g', alpha=0.4)
-    plt.hist(failed_moves['yaccels'], bins=50, color='r')
-    plt.xlabel('yaccel')
-    plt.ylabel('N moves')
-    plt.grid()
-    plt.show()
+    plot_file = Path('rotator_position.png')
+    plt.savefig(plot_file, bbox_inches='tight', pad_inches=0.10)
+#     plt.show()
 
 
 ##-------------------------------------------------------------------------
@@ -385,8 +443,7 @@ if __name__ == '__main__':
 
     print(f'Reading: {history_file}')
     history_table = Table.read(history_file, format='ascii.fixed_width')
-    print(history_table)
 
 #     plot_nbars(history_table)
 #     plot_rotposn(history_table)
-    plot_accel(history_table)
+#     plot_accel(history_table)
