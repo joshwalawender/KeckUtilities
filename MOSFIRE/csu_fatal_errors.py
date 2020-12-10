@@ -2,14 +2,30 @@
 
 ## Import General Tools
 import sys
+import argparse
 from pathlib import Path
 import re
 from datetime import datetime
 import subprocess
 from astropy.table import Table, Column, Row
 import numpy as np
+import subprocess
 
 from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
+
+
+##-------------------------------------------------------------------------
+## Parse Command Line Arguments
+##-------------------------------------------------------------------------
+## create a parser object for understanding command-line arguments
+p = argparse.ArgumentParser(description='''
+''')
+## add flags
+p.add_argument("-n", "--nodcs", dest="nodcs",
+    default=False, action="store_true",
+    help="Do not query dcs keyword history for rotator position values")
+args = p.parse_args()
 
 
 ##-------------------------------------------------------------------------
@@ -40,14 +56,19 @@ def check_for_transition(line, status, pattern, new_state):
 
 
 def parse_eavesdrop_log(logfile):
-    print(f'Parsing log file: {logfile.name}')
+
+#     cmd = ['grep', 'CSU', f'{logfile}']
+#     output = subprocess.run(cmd, stdout=subprocess.PIPE)
+#     lines = output.stdout.decode().split('\n')
+#     print(f'Parsing {len(lines)} CSU lines in log file: {logfile.name}')
+
+    lines = []
     try:
         with open(logfile) as log_file:
             log_contents = log_file.read()
             lines = log_contents.split('\n')
     except:
         print(f'  Failed to read {logfile}')
-        lines = []
 
     match_str = ('(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+) \[mosfire\] DEBUG '
                  'edu.ucla.astro.irlab.util.Property - Setting property ')
@@ -71,16 +92,24 @@ def parse_eavesdrop_log(logfile):
     xaccels = 0
     yaccels = 0
     moving_bars = []
-    status = None
+    setup_bars = []
+    status = (None, None)
+    xaccels = None
+    yaccels = None
     for line in lines:
-#         print(line)
 
-        if status is None:
+        if status[0] is None:
+#             print(f'No Status: {line}')
             mstart_time = re.match('(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+) \[', line)
             if mstart_time is not None:
                 start_time = datetime.strptime(mstart_time.group(1), '%Y-%m-%d %H:%M:%S,%f')
 #                 print(f'Found start time: {start_time}')
                 status = ('Idle', start_time)
+            continue
+
+        if re.search('<CSU', line) is None:
+#             print(f'Skipping: {line}')
+            continue
 
         # Read Xaccel and Yaccel
         mxaccel = pxaccel.match(line)
@@ -94,92 +123,113 @@ def parse_eavesdrop_log(logfile):
 #             print(f'Accelerations ({status[0]}): {xaccels} {yaccels} ({yaccel_time.strftime("%Y-%m-%d %H:%M:%S")})')
 
         # Check for Setup start
-        status, history_entry = check_for_transition(line, status, pstart_setup, 'Setup')
-        if history_entry is not None:
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
-            status_history.append(history_entry)
-            moving_bars = []
+        if status[0] != 'Error':
+            status, history_entry = check_for_transition(line, status, pstart_setup, 'Setup')
+            if history_entry is not None:
+                if xaccels is not None and yaccels is not None:
+                    history_entry['xaccels'] = xaccels
+                    history_entry['yaccels'] = yaccels
+                    history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+                status_history.append(history_entry)
+                moving_bars = []
 
         # Check for new BarTarget
-#         if status is not None:
-#             if status[0] == 'Setup':
-#                 matched = pbartarget.match(line)
-#                 if matched is not None:
-#                     moving_bars.append(matched.group(2))
+        if status[0] is not None:
+            if status[0] == 'Setup':
+                matched = pbartarget.match(line)
+                if matched is not None:
+                    setup_bars.append(matched.group(2))
 
         # Check for setup end
-        status, history_entry = check_for_transition(line, status, pend_setup, 'Idle')
-        if history_entry is not None:
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
-            status_history.append(history_entry)
+        if status[0] != 'Error':
+            status, history_entry = check_for_transition(line, status, pend_setup, 'Idle')
+            if history_entry is not None:
+                history_entry['nbars'] = len(setup_bars)
+                setup_bars = []
+                if xaccels is not None and yaccels is not None:
+                    history_entry['xaccels'] = xaccels
+                    history_entry['yaccels'] = yaccels
+                    history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+                status_history.append(history_entry)
 
         # Check for move start
-        status, history_entry = check_for_transition(line, status, pstart_move, 'Moving')
-        if history_entry is not None:
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
-            status_history.append(history_entry)
-            moving_bars = []
+        if status[0] != 'Error':
+            status, history_entry = check_for_transition(line, status, pstart_move, 'Moving')
+            if history_entry is not None:
+                if xaccels is not None and yaccels is not None:
+                    history_entry['xaccels'] = xaccels
+                    history_entry['yaccels'] = yaccels
+                    history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+                status_history.append(history_entry)
+                moving_bars = []
 
         # Count moving bars
-        if status is not None:
+        if status[0] is not None:
             if status[0] == 'Moving':
                 matched = pbarmoving.match(line)
                 if matched is not None:
                     moving_bars.append(matched.group(2))
 
         # Check for move end
-        status, history_entry = check_for_transition(line, status, pend_move, 'Idle')
-        if history_entry is not None:
-            history_entry['nbars'] = len(moving_bars)
-            moving_bars = []
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
-            status_history.append(history_entry)
+        if status[0] != 'Error':
+            status, history_entry = check_for_transition(line, status, pend_move, 'Idle')
+            if history_entry is not None:
+                history_entry['nbars'] = len(moving_bars)
+                moving_bars = []
+                if xaccels is not None and yaccels is not None:
+                    history_entry['xaccels'] = xaccels
+                    history_entry['yaccels'] = yaccels
+                    history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+                status_history.append(history_entry)
 
         # Check for fatal error
         status, history_entry = check_for_transition(line, status, pfatal_error, 'Error')
         if history_entry is not None:
             # Check what previous state was
-            if status_history[-1]['status'] not in ['Moving', 'PowerDown', 'Initialize']\
-               and status_history[-1]['duration (s)'] < 100:
-                print(f'Fatal Error after: {status_history[-1]["status"]} ({status_history[-1]["duration (s)"]} s)')
+            if len(status_history) > 1:
+                if status_history[-1]['duration (s)'] >= 120:
+                    print(f'  {history_entry["begin"]}: Fatal Error after: {status_history[-1]["status"]} ({status_history[-1]["duration (s)"]} s)')
+                else:
+                    print(f'  {history_entry["begin"]}: Fatal Error quickly after: {status_history[-1]["status"]} ({status_history[-1]["duration (s)"]} s)')
+                    if len(status_history) > 2:
+                        print(f'                      after: {status_history[-2]["status"]} ({status_history[-2]["duration (s)"]} s)')
+            else:
+                print(f'  {history_entry["begin"]}: Fatal Error')
+
             if history_entry['status'] == 'Moving':
                 history_entry['nbars'] = len(moving_bars)
                 moving_bars = []
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+            if xaccels is not None and yaccels is not None:
+                history_entry['xaccels'] = xaccels
+                history_entry['yaccels'] = yaccels
+                history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
             status_history.append(history_entry)
 
         # Check for power cycle
         status, history_entry = check_for_transition(line, status, ppower_down, 'PowerDown')
         if history_entry is not None:
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+            if xaccels is not None and yaccels is not None:
+                history_entry['xaccels'] = xaccels
+                history_entry['yaccels'] = yaccels
+                history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
             status_history.append(history_entry)
 
         # Check for initialization
         status, history_entry = check_for_transition(line, status, pinitialize, 'Initialize')
         if history_entry is not None:
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+            if xaccels is not None and yaccels is not None:
+                history_entry['xaccels'] = xaccels
+                history_entry['yaccels'] = yaccels
+                history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
             status_history.append(history_entry)
 
         # Check for initialization complete
         status, history_entry = check_for_transition(line, status, pinitialize_complete, 'Idle')
         if history_entry is not None:
-            history_entry['xaccels'] = xaccels
-            history_entry['yaccels'] = yaccels
-            history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
+            if xaccels is not None and yaccels is not None:
+                history_entry['xaccels'] = xaccels
+                history_entry['yaccels'] = yaccels
+                history_entry['accel age (s)'] = (status[1] - min([xaccel_time, xaccel_time])).total_seconds()
             status_history.append(history_entry)
 
     return status_history
@@ -189,6 +239,9 @@ def parse_eavesdrop_log(logfile):
 ## get_dcs_keywords
 ##-------------------------------------------------------------------------
 def get_dcs_keywords(timestamp):
+    if args.nodcs is True:
+        return {'ROTPOSN': 0, 'bad': False}
+
     cmd = ['gshow', '-s', 'dcs1',
            'ROTMODE', 'ROTPOSN', 'EL',
            '-window', '1s', '-csv',
@@ -278,27 +331,41 @@ def plot_accel(history_table):
     plt.figure(figsize=(12,12))
 
     bins = np.arange(0,10000,100)
-    plt.subplot(2,1,1)
+    ax = plt.subplot(2,1,1)
     plt.title('Acceleration Values')
-    plt.hist(successful_moves['xaccels'], bins=bins, color='g', alpha=0.4,
-             label='Successful Moves')
-    plt.hist(failed_moves['xaccels'], bins=bins, color='r',
-             label='Failed Moves')
+    n, bins, _ = ax.hist(successful_moves['xaccels'], bins=bins, color='g', alpha=0.4,
+                         label=f'Successful Moves ({len(successful_moves)})')
+    ax.hist(failed_moves['xaccels'], bins=bins, color='r', alpha=0.1,
+            label=f'Failed Moves ({len(failed_moves)})')
+    ax.set_ylim(0, max(n)*1.1)
+    ax.set_ylabel('N Successful Moves')
+    plt.legend(loc='best')
+    failed_ax = ax.twinx()
+    fn, fbins, _ = failed_ax.hist(failed_moves['xaccels'], bins=bins, color='r', alpha=0.4,
+                                  label=f'Failed Moves ({len(failed_moves)})')
+    failed_ax.set_ylim(0, max(n)*1.1/50)
+    failed_ax.set_ylabel('N Failed Moves')
     plt.xlabel('xaccel')
     plt.xlim(1000,9000)
-    plt.ylabel('N moves')
-    plt.legend(loc='best')
     plt.grid()
 
-    plt.subplot(2,1,2)
-    plt.hist(successful_moves['yaccels'], bins=bins, color='g', alpha=0.4,
-             label='Successful Moves')
-    plt.hist(failed_moves['yaccels'], bins=bins, color='r',
-             label='Failed Moves')
+    ax = plt.subplot(2,1,2)
+    n, bins, _ = plt.hist(successful_moves['yaccels'], bins=bins, color='g', alpha=0.4,
+                          label=f'Successful Moves ({len(successful_moves)})')
+    plt.hist(failed_moves['yaccels'], bins=bins, color='r', alpha=0.1,
+             label=f'Failed Moves ({len(failed_moves)})')
+    plt.legend(loc='best')
+    ax.set_ylim(0, max(n)*1.1)
+    ax.set_ylabel('N Successful Moves')
+
+    failed_ax = ax.twinx()
+    plt.hist(failed_moves['yaccels'], bins=bins, color='r', alpha=0.4,
+             label=f'Failed Moves ({len(failed_moves)})')
+    failed_ax.set_ylim(0, max(n)*1.1/50)
+    failed_ax.set_ylabel('N Failed Moves')
+
     plt.xlabel('yaccel')
     plt.xlim(1000,9000)
-    plt.ylabel('N moves')
-    plt.legend(loc='best')
     plt.grid()
 
     plot_file = Path('acceleration_values.png')
@@ -315,24 +382,32 @@ def plot_nbars(history_table):
 
     successful_moves = moves[moves['MoveFailed'] == 'False']
     failed_moves = moves[moves['MoveFailed'] == 'True']
-    time_successful_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+    time_successful_moves = [datetime.strptime(x[:19], '%Y-%m-%d %H:%M:%S')\
                              for x in successful_moves['begin']]
-    time_failed_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+    time_failed_moves = [datetime.strptime(x[:19], '%Y-%m-%d %H:%M:%S')\
                          for x in failed_moves['begin']]
 
     plt.figure(figsize=(12,12))
 
-    plt.subplot(2,1,1)
+    ax = plt.subplot(2,1,1)
     plt.title('Number of Bars Moving')
     bins = np.arange(0,92,1)
-    plt.hist(successful_moves['nbars'], bins=bins, color='g', alpha=0.4,
-             label='Successful Moves')
-    plt.hist(failed_moves['nbars'], bins=bins, color='r',
-             label='Failed Moves')
-    plt.xlabel('Number of Bars')
-    plt.ylabel('N Moves')
-    plt.xlim(0,93)
+    n, bins, _ = plt.hist(successful_moves['nbars'], bins=bins, color='g', alpha=0.4,
+                          label=f'Successful Moves ({len(successful_moves)})')
+    plt.hist(failed_moves['nbars'], bins=bins, color='r', alpha=0.1,
+             label=f'Failed Moves ({len(failed_moves)})')
     plt.legend(loc='best')
+    ax.set_ylim(0, max(n)*1.1)
+    ax.set_ylabel('N Successful Moves')
+
+    failed_ax = ax.twinx()
+    plt.hist(failed_moves['nbars'], bins=bins, color='r', alpha=0.4,
+             label=f'Failed Moves ({len(failed_moves)})')
+    failed_ax.set_ylim(0, max(n)*1.1/50)
+    failed_ax.set_ylabel('N Failed Moves')
+
+    plt.xlabel('Number of Bars')
+    plt.xlim(0,93)
     plt.grid()
 
     plt.subplot(2,1,2)
@@ -360,22 +435,31 @@ def plot_rotposn(history_table):
     moves = history_table[history_table['status'] == 'Moving']
     successful_moves = moves[moves['MoveFailed'] == 'False']
     failed_moves = moves[moves['MoveFailed'] == 'True']
-    time_successful_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+    time_successful_moves = [datetime.strptime(x[:19], '%Y-%m-%d %H:%M:%S')\
                              for x in successful_moves['begin']]
-    time_failed_moves = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S.%f')\
+    time_failed_moves = [datetime.strptime(x[:19], '%Y-%m-%d %H:%M:%S')\
                          for x in failed_moves['begin']]
     t0 = time_successful_moves[0]
     t1 = time_successful_moves[-1]
 
     plt.figure(figsize=(12,12))
 
-    plt.subplot(2,1,1)
+    ax = plt.subplot(2,1,1)
     plt.title('Rotator Angle')
     bins = np.arange(-450,360,10)
-    plt.hist(successful_moves['ROTPOSN'], bins=bins, color='g', alpha=0.4,
-             label='Successful Moves')
-    plt.hist(failed_moves['ROTPOSN'], bins=bins, color='r',
-             label='Failed Moves')
+    n, bins, _ = plt.hist(successful_moves['ROTPOSN'], bins=bins, color='g', alpha=0.4,
+                          label=f'Successful Moves ({len(successful_moves)})')
+    plt.hist(failed_moves['ROTPOSN'], bins=bins, color='r', alpha=0.1,
+             label=f'Failed Moves ({len(failed_moves)})')
+    plt.legend(loc='best')
+    ax.set_ylim(0, max(n)*1.1)
+    ax.set_ylabel('N Successful Moves')
+
+    failed_ax = ax.twinx()
+    plt.hist(failed_moves['ROTPOSN'], bins=bins, color='r', alpha=0.4,
+             label=f'Failed Moves ({len(failed_moves)})')
+    failed_ax.set_ylim(0, max(n)*1.1/50)
+    failed_ax.set_ylabel('N Failed Moves')
 
     plt.axvspan(170, 190, color='r', alpha=0.1)
     plt.axvspan(-10, 10, color='r', alpha=0.1)
@@ -385,7 +469,6 @@ def plot_rotposn(history_table):
     plt.xlabel('ROTPPOSN')
     plt.xticks(np.arange(-390,390,30))
     plt.ylabel('N Moves')
-    plt.legend(loc='best')
     plt.grid()
 
     plt.subplot(2,1,2)
@@ -409,6 +492,59 @@ def plot_rotposn(history_table):
 
 
 ##-------------------------------------------------------------------------
+## Plot: failure rate vs. time
+##-------------------------------------------------------------------------
+def plot_fail_rate(history_table):
+    print('Plotting failure rate vs. time')
+    moves = history_table[history_table['status'] == 'Moving']
+    successful_moves = moves[moves['MoveFailed'] == 'False']
+    failed_moves = moves[moves['MoveFailed'] == 'True']
+    time_successful_moves = [datetime.strptime(x[:19], '%Y-%m-%d %H:%M:%S')\
+                             for x in successful_moves['begin']]
+    time_failed_moves = [datetime.strptime(x[:19], '%Y-%m-%d %H:%M:%S')\
+                         for x in failed_moves['begin']]
+    t0 = time_successful_moves[0]
+    t1 = time_successful_moves[-1]
+
+    plt.figure(figsize=(12,12))
+    ax = plt.subplot(2,1,1)
+    n, bins, _ = plt.hist(mdates.date2num(time_successful_moves),
+                          bins=50, color='g', alpha=0.4,
+                          label=f'Successful Moves ({len(successful_moves)})')
+    nf, bins, _ = plt.hist(mdates.date2num(time_failed_moves),
+                           bins=bins, color='r', alpha=0.1,
+                           label=f'Failed Moves ({len(failed_moves)})')
+    plt.legend(loc='best')
+    ax.set_ylim(0, max(n)*1.1)
+    ax.set_ylabel('N Successful Moves')
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    plt.xlabel('Time')
+    plt.grid()
+
+    failed_ax = ax.twinx()
+    plt.hist(mdates.date2num(time_failed_moves),
+             bins=bins, color='r', alpha=0.4,
+             label=f'Failed Moves ({len(failed_moves)})')
+    failed_ax.set_ylim(0, max(n)*1.1/50)
+    failed_ax.set_ylabel('N Failed Moves')
+
+    ax = plt.subplot(2,1,2)
+    failrate = [nf[i]/n[i]*100 if n[i] > 0 else 0 for i,s in enumerate(n)]
+    plt.plot(bins[1:], failrate, 'r-', drawstyle='steps-mid')
+    plt.plot(bins[1:], [0]*len(bins[1:]), 'k-', drawstyle='steps-mid', alpha=0.5)
+    ax.set_ylabel('Move Failure Rate (%)')
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    plt.xlabel('Time')
+    plt.grid()
+
+    plot_file = Path('failure_rate.png')
+    plt.savefig(plot_file, bbox_inches='tight', pad_inches=0.10)
+
+
+
+##-------------------------------------------------------------------------
 ## __main__
 ##-------------------------------------------------------------------------
 if __name__ == '__main__':
@@ -418,12 +554,14 @@ if __name__ == '__main__':
     status_history = list()
 
     if history_file.exists() is False:
-        path_eavesdrop = Path('/s/sdata1300/logs/gui/eavesdrop/')
-#         status = parse_eavesdrop_log(path_eavesdrop.joinpath('201129_1803_eavesdrop.log'))
+#         status = parse_eavesdrop_log(Path('190614_1919_eavesdrop.log'))
 #         status_history.extend( status )
 
-        years = [20]
-#         years = [15, 16, 17, 18, 19, 20]
+        path_eavesdrop = Path('/s/sdata1300/logs/gui/eavesdrop/')
+#         status = parse_eavesdrop_log(path_eavesdrop.joinpath('190614_1919_eavesdrop.log'))
+#         status_history.extend( status )
+
+        years = [15, 16, 17, 18, 19, 20]
         for year in years:
             logfiles = [x for x in path_eavesdrop.glob(f'{year:02d}*.log')]
             nlogs = len(logfiles)
@@ -431,6 +569,7 @@ if __name__ == '__main__':
             for log_eavesdrop in logfiles:
                 status = parse_eavesdrop_log(log_eavesdrop)
                 status_history.extend( status )
+
         history_table = Table(status_history)
         move_failed = np.zeros(len(history_table), dtype=bool)
         for i,event in enumerate(history_table):
@@ -440,10 +579,10 @@ if __name__ == '__main__':
                     move_failed[i-1] = True
         history_table.add_column(Column(move_failed, name='MoveFailed'))
         history_table.write(history_file, format='ascii.fixed_width', overwrite=True)
-
-    print(f'Reading: {history_file}')
-    history_table = Table.read(history_file, format='ascii.fixed_width')
-
-#     plot_nbars(history_table)
-#     plot_rotposn(history_table)
-#     plot_accel(history_table)
+    else:
+        print(f'Reading: {history_file}')
+        history_table = Table.read(history_file, format='ascii.fixed_width')
+        plot_nbars(history_table)
+        plot_rotposn(history_table)
+        plot_accel(history_table)
+        plot_fail_rate(history_table)
