@@ -340,12 +340,13 @@ def plot_accel(history_table):
     ax.set_ylim(0, max(n)*1.1)
     ax.set_ylabel('N Successful Moves')
     plt.legend(loc='best')
+    plt.xlabel('xaccel')
+
     failed_ax = ax.twinx()
     fn, fbins, _ = failed_ax.hist(failed_moves['xaccels'], bins=bins, color='r', alpha=0.4,
                                   label=f'Failed Moves ({len(failed_moves)})')
     failed_ax.set_ylim(0, max(n)*1.1/50)
     failed_ax.set_ylabel('N Failed Moves')
-    plt.xlabel('xaccel')
     plt.xlim(1000,9000)
     plt.grid()
 
@@ -357,6 +358,7 @@ def plot_accel(history_table):
     plt.legend(loc='best')
     ax.set_ylim(0, max(n)*1.1)
     ax.set_ylabel('N Successful Moves')
+    plt.xlabel('yaccel')
 
     failed_ax = ax.twinx()
     plt.hist(failed_moves['yaccels'], bins=bins, color='r', alpha=0.4,
@@ -364,7 +366,6 @@ def plot_accel(history_table):
     failed_ax.set_ylim(0, max(n)*1.1/50)
     failed_ax.set_ylabel('N Failed Moves')
 
-    plt.xlabel('yaccel')
     plt.xlim(1000,9000)
     plt.grid()
 
@@ -530,7 +531,9 @@ def plot_fail_rate(history_table):
     failed_ax.set_ylabel('N Failed Moves')
 
     ax = plt.subplot(2,1,2)
-    failrate = [nf[i]/n[i]*100 if n[i] > 0 else 0 for i,s in enumerate(n)]
+    failrate = [nf[i]/(nf[i]+n[i])*100 if n[i] > 0 else 0 for i,s in enumerate(n)]
+    failuncert = [nf[i]/(nf[i]+n[i])*100
+                  if n[i] > 0 else 0 for i,s in enumerate(n)]
     plt.plot(bins[1:], failrate, 'r-', drawstyle='steps-mid')
     plt.plot(bins[1:], [0]*len(bins[1:]), 'k-', drawstyle='steps-mid', alpha=0.5)
     ax.set_ylabel('Move Failure Rate (%)')
