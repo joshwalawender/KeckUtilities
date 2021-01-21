@@ -28,7 +28,7 @@ class ICSFile(object):
 
 
     def add_event(self, title, starttime, endtime, description,
-                  location='', alarm=15,
+                  location='', alarm=15, categories='Support',
                   verbose=False):
         assert type(title) is str
         assert type(starttime) in [dt, str]
@@ -63,6 +63,8 @@ class ICSFile(object):
                                'DESCRIPTION:Reminder\n',
                                'END:VALARM\n',
                                ] )
+        if categories is not None:
+            new_lines.append(f'CATEGORIES:{categories}\n')
         new_lines.extend( ['END:VEVENT\n', '\n' ] )
 
         self.lines.extend(new_lines)
