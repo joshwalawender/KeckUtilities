@@ -433,7 +433,8 @@ def plot_nbars(history_table):
 ##-------------------------------------------------------------------------
 def plot_rotposn(history_table):
     print('Plotting rotator position in move')
-    moves = history_table[history_table['status'] == 'Moving']
+    rot_history_table = history_table[21028:]
+    moves = rot_history_table[rot_history_table['status'] == 'Moving']
     successful_moves = moves[moves['MoveFailed'] == 'False']
     failed_moves = moves[moves['MoveFailed'] == 'True']
     time_successful_moves = [datetime.strptime(x[:19], '%Y-%m-%d %H:%M:%S')\
@@ -445,7 +446,7 @@ def plot_rotposn(history_table):
 
     plt.figure(figsize=(12,12))
 
-    ax = plt.subplot(2,1,1)
+    ax = plt.subplot(3,1,1)
     plt.title('Rotator Angle')
     bins = np.arange(-450,360,10)
     n, bins, _ = plt.hist(successful_moves['ROTPOSN'], bins=bins, color='g', alpha=0.4,
@@ -457,8 +458,8 @@ def plot_rotposn(history_table):
     ax.set_ylabel('N Successful Moves')
 
     failed_ax = ax.twinx()
-    plt.hist(failed_moves['ROTPOSN'], bins=bins, color='r', alpha=0.4,
-             label=f'Failed Moves ({len(failed_moves)})')
+    nf, binsf, _ = plt.hist(failed_moves['ROTPOSN'], bins=bins, color='r', alpha=0.4,
+                            label=f'Failed Moves ({len(failed_moves)})')
     failed_ax.set_ylim(0, max(n)*1.1/50)
     failed_ax.set_ylabel('N Failed Moves')
 
@@ -468,11 +469,20 @@ def plot_rotposn(history_table):
     plt.axvspan(-370, -350, color='r', alpha=0.1)
 
     plt.xlabel('ROTPPOSN')
-    plt.xticks(np.arange(-390,390,30))
+    plt.xticks(np.arange(-450,390,30))
     plt.ylabel('N Moves')
     plt.grid()
 
-    plt.subplot(2,1,2)
+    ax = plt.subplot(3,1,2)
+    rate = nf/(n+nf)*100
+    rbins = [(bins[i+1]+bins[i])/2 for i in range(len(bins)-1)]
+    plt.plot(rbins, rate, 'ro')
+    plt.xlabel('ROTPPOSN')
+    plt.xticks(np.arange(-450,390,30))
+    plt.ylabel('Failure Rate (%)')
+    plt.grid()
+
+    plt.subplot(3,1,3)
     plt.plot(time_successful_moves, successful_moves['ROTPOSN'], 'go',
              alpha=0.2, mew=0, label=f'Successful Moves ({len(successful_moves)})')
     plt.plot(time_failed_moves, failed_moves['ROTPOSN'], 'rv',
