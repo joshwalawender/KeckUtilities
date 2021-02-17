@@ -343,6 +343,15 @@ def main():
         nnights = month_nights[int(month[-2:])]
         print(f"  For {month}: {nsupport:2d} / {nnights:2d} nights ({100*nsupport/nnights:4.1f} %)")
 
+    byinst = sasched.group_by('Instrument')
+    inst_nights = Table(names=('Instrument', 'NightCount'), dtype=('a12', 'i4'))
+    for group in byinst.groups:
+        inst_nights.add_row({'Instrument': group['Instrument'][0],
+                             'NightCount': len(group)})
+    inst_nights.sort(keys=['NightCount'])
+    inst_nights.reverse()
+    print(inst_nights)
+
 
 if __name__ == '__main__':
     main()
