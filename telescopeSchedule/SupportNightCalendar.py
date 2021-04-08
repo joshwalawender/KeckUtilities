@@ -304,6 +304,7 @@ def main():
             description = [title,
                            f"Sunset: {twilights['sunset']} UT",
                            f"12deg:  {twilights['dusk_12deg']} UT",
+                           f"18deg:  {twilights['dusk_18deg']} UT",
                            ]
 
             for entry in progsbytel.groups[idx]:
@@ -320,6 +321,7 @@ def main():
                 description.append(f"Zoom: {zoomnrs[telNr]}")
 
             description.append('')
+            description.append(f"18deg:  {twilights['dawn_18deg']} UT")
             description.append(f"12deg:  {twilights['dawn_12deg']} UT")
             description.append(f"Sunrise: {twilights['sunrise']} UT")
             description.append('----')
