@@ -191,33 +191,8 @@ def main():
         type=str, dest="file",
         default='Nights.ics',
         help="Filename (including path if desired) to write to")
-    parser.add_argument('-b', '--begin',
-        type=str, dest="begin", #widget='DateChooser',
-        help="Start date in YYYY-mm-dd format.")
-    parser.add_argument('-e', '--end',
-        type=str, dest="end", #widget='DateChooser',
-        help="End date in YYYY-mm-dd format.")
     args = parser.parse_args()
 
-    ## Set start date
-    if args.begin is not None:
-        try:
-            from_dto = dt.strptime(args.begin, '%Y-%m-%d')
-        except:
-            from_dto = dt.now()
-    else:
-        from_dto = dt.now()
-    ## Determine ndays from args.end
-    if args.end is not None:
-        try:
-            end_dto = dt.strptime(args.end, '%Y-%m-%d')
-        except:
-            pass
-        else:
-            delta = end_dto - from_dto
-            ndays = delta.days + 1
-    else:
-        ndays = None
     ## If semester is set, use that for start and end dates
     if args.semester is not None:
         try:
@@ -234,6 +209,16 @@ def main():
                 ndays = delta.days + 1
         except:
             pass
+    ## If semester is not set, pull from today through the current semester
+    else:
+        from_dto = dt.now()
+        if from_dto.month > 1 and from_dto.month <= 7:
+            ## We are in semester A
+            end_dto = dt(from_dto.year, 7, 31)
+        else:
+            end_dto = dt(from_dto.year+1, 1, 31)
+        delta = end_dto - from_dto
+        ndays = delta.days + 1
 
     print('Retrieving telescope schedule')
     from_date = from_dto.strftime('%Y-%m-%d')
@@ -296,7 +281,7 @@ def main():
                 title = f"{instruments[0]} {supporttype}"
             else:
                 title = f"{'/'.join(instruments)} {supporttype}"
-            print(f"  {date}: {title}")
+#             print(f"  {date}: {title}")
 
             calstart = f"{twilights['udate'].replace('-', '')}"\
                        f"T{twilights['sunset HST'].replace(':', '')}00"
