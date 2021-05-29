@@ -301,7 +301,7 @@ def main():
                 telcal_start = f"VALUE=DATE:{date.replace('-', '')}"
                 telcal_end = f"VALUE=DATE:{date.replace('-', '')}"
                 tel_sched_file.add_event(telcal_title, telcal_start, telcal_end,
-                                         description)
+                                         description, alarm=None)
 
             if args.sa.lower() in group['SA']:
 #                 print(f'Generating SA schedule entry for {date} on K{TelNr}')
