@@ -203,8 +203,12 @@ def build_cal_info(date, entries):
 
     if len(set(entries['Instrument'])) == 1:
         title = f"{entries['Instrument'][0]} {supporttype}"
+        if entries['Principal'][0].strip() == 'Shutdown'\
+           or entries['PiLastName'][0].strip() == 'Shutdown':
+            title = 'Shutdown'
     else:
         title = f"{'/'.join(entries['Instrument'])} {supporttype}"
+
     description = [f"Sunset: {twilights['sunset']} UT",
                    f"12deg:  {twilights['dusk_12deg']} UT",
                    f"18deg:  {twilights['dusk_18deg']} UT",
