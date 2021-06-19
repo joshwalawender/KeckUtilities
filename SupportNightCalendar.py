@@ -11,7 +11,7 @@ from datetime import timedelta as tdelta
 import numpy as np
 from astropy.table import Table, Column, Row
 
-from telescopeSchedule import *
+from telescopeSchedule.telescopeSchedule import *
 
 
 zoomnrs = {1: 'https://keckobservatory.zoom.us/j/8088813714?pwd=eGM3aDhlMHdKd1F0LzY4N2kzSjhJdz09',

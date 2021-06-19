@@ -5,7 +5,7 @@ import argparse
 from datetime import datetime as dt
 from datetime import timedelta as tdelta
 
-from telescopeSchedule import *
+from telescopeSchedule.telescopeSchedule import *
 
 ##-------------------------------------------------------------------------
 ## Parse Command Line Arguments
