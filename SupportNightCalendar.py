@@ -31,6 +31,12 @@ parser.add_argument('-s', '--sa',
 parser.add_argument('--sem', '--semester',
     type=str, dest="semester",
     help="Semester (e.g. '18B')")
+parser.add_argument('--start',
+    type=str, dest="start", default='',
+    help="Start date (e.g. 2021-08-01)")
+parser.add_argument('--end',
+    type=str, dest="end", default='',
+    help="End date (e.g. 2021-09-01)")
 parser.add_argument('--calend',
     type=int, dest="calend",
     default='2359',
@@ -255,6 +261,11 @@ def main():
                 ndays = delta.days + 1
         except:
             pass
+    elif args.start != '' and args.end != '':
+        from_dto = dt.strptime(args.start, '%Y-%m-%d')
+        end_dto = dt.strptime(args.end, '%Y-%m-%d')
+        delta = end_dto - from_dto
+        ndays = delta.days + 1
     ## If semester is not set, pull from today through the current semester
     else:
         from_dto = dt.now()
@@ -308,7 +319,7 @@ def main():
                                          description, alarm=None)
 
             if args.sa.lower() in group['SA']:
-#                 print(f'Generating SA schedule entry for {date} on K{TelNr}')
+                print(f'Generating SA schedule entry for {date} on K{TelNr}')
                 if month in month_night_count.keys():
                     month_night_count[month] += 1
                 else:
