@@ -308,17 +308,20 @@ def main():
         for group in group_by_tel.groups:
             TelNr = int(group['TelNr'][0])
             title, description = build_cal_info(date, group)
+            cancelled = isCancelled(date=date, tel=TelNr)
 
             # Add telescope schedule entry
             if tel_sched_file is not None:
-#                 print(f'Generating telescope schedule entry for {date} on K{TelNr}')
+                print(f'Generating telescope schedule entry for {date} on K{TelNr}')
                 telcal_title = f"K{TelNr}: {title.split()[0]}"
+                if cancelled is True:
+                    telcal_title = f'CANCELLED ({telcal_title})'
                 telcal_start = f"VALUE=DATE:{date.replace('-', '')}"
                 telcal_end = f"VALUE=DATE:{date.replace('-', '')}"
                 tel_sched_file.add_event(telcal_title, telcal_start, telcal_end,
                                          description, alarm=None)
 
-            if args.sa.lower() in group['SA']:
+            if args.sa.lower() in group['SA'] and cancelled is False:
                 print(f'Generating SA schedule entry for {date} on K{TelNr}')
                 if month in month_night_count.keys():
                     month_night_count[month] += 1

@@ -59,6 +59,18 @@ def get_SA(date=None, tel=1):
     return sa
 
 
+def isCancelled(date=None, tel=1):
+    if date is None:
+        return None
+    req = f"cmd=getObservingStatus&date={date}"
+    result = querydb(req)
+    for entry in result:
+        if (entry['Date'] == date) and entry['TelNr'] == str(tel):
+#             print(f'{date} K{tel}: {entry["ObservingStatus"]}')
+            cancelled = (entry['ObservingStatus'] == 'cancelled')
+    return cancelled
+
+
 def get_telsched(from_date=None, ndays=None, telnr=None):
     if from_date is None:
         now = dt.now()
