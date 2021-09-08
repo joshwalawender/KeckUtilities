@@ -224,8 +224,10 @@ def build_cal_info(date, entries):
     for entry in entries:
         obslist = entry['Observers'].split(',')
         loclist = entry['Location'].split(',')
-        assert len(obslist) == len(loclist)
-        observers = [f"{obs}({loclist[i]})" for i,obs in enumerate(obslist)]
+        try:
+            observers = [f"{obs}({loclist[i]})" for i,obs in enumerate(obslist)]
+        except:
+            observers = f"{obslist} / {loclist}"
         description.append('')
         description.append(f"Account: {entry['Account']}")
         description.append(f"PI: {entry['Principal']}")
@@ -312,7 +314,7 @@ def main():
 
             # Add telescope schedule entry
             if tel_sched_file is not None:
-                print(f'Generating telescope schedule entry for {date} on K{TelNr}')
+#                 print(f'Generating telescope schedule entry for {date} on K{TelNr}')
                 telcal_title = f"K{TelNr}: {title.split()[0]}"
                 if cancelled is True:
                     telcal_title = f'CANCELLED ({telcal_title})'
@@ -322,7 +324,7 @@ def main():
                                          description, alarm=None)
 
             if args.sa.lower() in group['SA'] and cancelled is False:
-                print(f'Generating SA schedule entry for {date} on K{TelNr}')
+#                 print(f'Generating SA schedule entry for {date} on K{TelNr}')
                 if month in month_night_count.keys():
                     month_night_count[month] += 1
                 else:
