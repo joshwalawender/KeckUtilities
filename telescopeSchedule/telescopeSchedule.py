@@ -43,7 +43,11 @@ def querydb(req):
     try:
         result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
+        print('Error from database query.')
+        print(url)
+        print('Returned Value:')
         print(r.text)
+        print('----')
         raise(e)
     return result
 
