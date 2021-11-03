@@ -46,10 +46,13 @@ def get_site_table_single_query(from_date=None, ndays=5):
         else:
             tonights_sites = prog['Location'].split(',')
         tonights_observers = prog['Observers'].split(',')
-        if len(tonights_sites) != len(tonights_observers):
-            print('Mismatch in number of sites and observers')
-            print(prog)
-        
+        while len(tonights_sites) != len(tonights_observers):
+            if len(tonights_sites) > len(tonights_observers):
+                print(f'{prog["Date"]}: N sites > N observers: removing last site')
+                tonights_sites.pop()
+            elif len(tonights_sites) < len(tonights_observers):
+                print(f'{prog["Date"]}: N sites < N observers: adding site Other')
+                tonights_sites.append('Other')
         t.add_index('Date')
         rowid = t.loc_indices[prog['Date']]
         for entry in tonights_sites:
@@ -77,7 +80,7 @@ def get_site_table_single_query(from_date=None, ndays=5):
 
 def get_site_table(from_date=None, ndays=5):
     t = get_site_table_single_query(from_date=from_date, ndays=ndays)
-    last_date = datetime.strptime(t['Date'][-1], '%Y-%m-%d')
+    last_date = datetime.strptime(t['Date'][-1], '%Y-%m-%d') + timedelta(days=1)
     while len(t) < ndays:
         need_more_days = ndays - len(t)
         print(f"At {last_date.strftime('%Y-%m-%d')}, Need {need_more_days} more days")
@@ -85,7 +88,7 @@ def get_site_table(from_date=None, ndays=5):
                          from_date=last_date.strftime('%Y-%m-%d'),
                          ndays=need_more_days)
         t = vstack([t, new_t])
-        last_date = datetime.strptime(t['Date'][-1], '%Y-%m-%d')
+        last_date = datetime.strptime(t['Date'][-1], '%Y-%m-%d') + timedelta(days=1)
     return t
 
 
@@ -144,11 +147,28 @@ def analyze_site_table(t, binsize=29):
     return t, g, b
 
 
-def plot_grouped_site_use(g):
+def plot_grouped_site_use(t, g):
     dates = [datetime.strptime(d, '%Y-%m-%d') for d in g['Date']]
     plt.figure(figsize=(16,8))
-    
-    plt.title('Site Use Over Time')
+
+    # Pre- vs. Post- Pandemic Observer Counts
+    ids = [0, 750, 850, -1]
+    print(f"Pre-pandemic time frame: {t[ids[0]]['Date']} to {t[ids[1]]['Date']}")
+    pre_mean_observer_count = np.mean(t[ids[0]:ids[1]]['Observer Count'])
+    pre_median_observer_count = np.median(t[ids[0]:ids[1]]['Observer Count'])
+    print(f"  {pre_mean_observer_count:.1f} mean observers per night ({pre_median_observer_count:.1f} median)")
+    print(f"Post-pandemic time frame: {t[ids[2]]['Date']} to {t[ids[3]]['Date']}")
+    post_mean_observer_count = np.mean(t[ids[2]:ids[3]]['Observer Count'])
+    post_median_observer_count = np.median(t[ids[2]:ids[3]]['Observer Count'])
+    print(f"  {post_mean_observer_count:.1f} mean observers per night ({post_median_observer_count:.1f} median)")
+
+    title_str = (f"Site Use Over Time\n"
+                 f"Pre-pandemic ({t[ids[0]]['Date']} to {t[ids[1]]['Date']}) "
+                 f"{pre_mean_observer_count:.1f} mean observers per night ({pre_median_observer_count:.1f} median)\n"
+                 f"Post-pandemic ({t[ids[2]]['Date']} to {t[ids[3]]['Date']}) "
+                 f"{post_mean_observer_count:.1f} mean observers per night ({post_median_observer_count:.1f} median)"
+                 )
+    plt.title(title_str)
     colors = ['b', 'y', 'k', 'k', 'r', 'g']
     alphas = [0.4, 0.4, 0.4, 0.2, 0.2, 0.4]
     previous_fracs = np.zeros(len(g))
@@ -170,7 +190,7 @@ def plot_grouped_site_use(g):
                   label='N Observers',
                   drawstyle='steps-post')
     cax.set_ylabel('Number of Observers per Night')
-    cax.set_ylim(2, 12)
+    cax.set_ylim(3, 13)
 
     margin_frac = 0.15
     margin_days = (max(dates) - min(dates)).days*margin_frac
@@ -183,8 +203,8 @@ def plot_grouped_site_use(g):
 
 if __name__ == '__main__':
     from_date = '2018-02-01'
-    file = Path(f'site_use_from_{from_date}.csv')
     ndays = (datetime.now() - datetime.strptime(from_date, '%Y-%m-%d')).days
+    file = Path(f'site_use_{ndays}days_from_{from_date}.csv')
     if file.exists() is False:
         print('Querying database')
         t = get_site_table(from_date=from_date, ndays=ndays)
@@ -193,5 +213,5 @@ if __name__ == '__main__':
         print('Reading file on disk')
         t = Table.read(file)
     t, g, b = analyze_site_table(t)
-    plot_grouped_site_use(b)
+    plot_grouped_site_use(t, b)
     
