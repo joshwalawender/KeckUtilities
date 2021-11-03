@@ -2,6 +2,7 @@
 
 ## Import General Tools
 import sys
+import re
 from pathlib import Path
 import numpy as np
 from astropy.table import Table, Column, vstack
@@ -30,15 +31,6 @@ def get_site_table_single_query(from_date=None, ndays=5):
     if ndays > 100:
         ndays = 100
     sched = get_telsched(from_date=from_date, ndays=ndays, telnr=None)
-
-
-#     site_list.append('Group: UC')
-#     site_list.append('Group: US')
-#     site_list.append('Group: Australia')
-#     site_list.append('Group: CIT')
-#     site_list.append('Group: Other')
-#     site_list.append('Group: HQ')
-
     t = Table(names=['Date'] + site_list,
               dtype=['a10'] + [int]*len(site_list))
 
@@ -49,11 +41,22 @@ def get_site_table_single_query(from_date=None, ndays=5):
             for site in site_list:
                 row[site] = 0
             t.add_row(row)
-        tonights_sites = prog['Location'].split(',')
-#         print(prog['ProjCode'], tonights_sites)
+        if prog['Location'] == 'CIT. Hirsch,CIT,UCB,CIT':
+            tonights_sites = 'CIT,CIT,UCB,CIT'.split(',')
+        else:
+            tonights_sites = prog['Location'].split(',')
+        tonights_observers = prog['Observers'].split(',')
+        if len(tonights_sites) != len(tonights_observers):
+            print('Mismatch in number of sites and observers')
+            print(prog)
+        
         t.add_index('Date')
         rowid = t.loc_indices[prog['Date']]
         for entry in tonights_sites:
+            if entry == 'CIT. Hirsch':
+                print(tonights_sites)
+                print('Correcting comma')
+                entry = 'CIT, Hirsch'
             if entry in site_list:
                 t[rowid][entry] += 1
             elif entry == 'Swin':
@@ -62,6 +65,8 @@ def get_site_table_single_query(from_date=None, ndays=5):
                 t[rowid]['NU'] += 1
             elif entry == 'USCS':
                 t[rowid]['UCSC'] += 1
+            elif entry == 'NASA':
+                t[rowid]['Other'] += 1
             elif entry == '':
                 pass
             else:
@@ -84,7 +89,7 @@ def get_site_table(from_date=None, ndays=5):
     return t
 
 
-def analyze_site_table(t):
+def analyze_site_table(t, binsize=29):
     # Prepare table with sites grouped by partner
     g = Table(names=['Date'] + group_list,
               dtype=['a10'] + [int]*len(group_list))
@@ -122,7 +127,6 @@ def analyze_site_table(t):
     # Bin groups data
     b = Table(names=['Date'] + group_list + ['Observer Count'],
               dtype=['a10'] + [int]*(len(group_list)+1))
-    binsize = 29
     nbinnedrows = int(np.floor(len(g)/binsize))
     for i in np.arange(0, nbinnedrows, 1):
         grows = g[i*binsize:(i+1)*binsize]
@@ -135,7 +139,8 @@ def analyze_site_table(t):
     for group in group_list:
         frac = b[group]/b['Observer Count']
         b.add_column(Column(data=frac, name=f'{group} fraction'))
-
+    b.add_column(Column(data=[c/binsize for c in b['Observer Count']],
+                        name='Observers per Night'))
     return t, g, b
 
 
@@ -161,11 +166,11 @@ def plot_grouped_site_use(g):
     plt.legend(loc='upper right')
 
     cax = plt.gca().twinx()
-    cax.plot_date(dates, g['Observer Count'], 'k-',
+    cax.plot_date(dates, g['Observers per Night'], 'k-',
                   label='N Observers',
                   drawstyle='steps-post')
-    cax.set_ylabel('Number of Observers')
-    cax.set_ylim(100, 350)
+    cax.set_ylabel('Number of Observers per Night')
+    cax.set_ylim(2, 12)
 
     margin_frac = 0.15
     margin_days = (max(dates) - min(dates)).days*margin_frac
