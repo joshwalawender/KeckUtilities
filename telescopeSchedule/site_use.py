@@ -16,7 +16,10 @@ site_list = sorted(['ANU', 'CIT', 'UCB', 'UCD', 'UCLA', 'UCSD', 'UCI', 'UCR', 'Y
                     'USRA', 'NU', 'HQ', 'IfA', 'Stanford', 'Swinburne', 'UCSB', 'UCSC'])
 site_list.append('Other')
 
-group_list = ['UC', 'CIT', 'IfA+US', 'Australia', 'HQ', 'Other']
+group_list = ['HQ', 'UC', 'CIT', 'IfA+US', 'Australia', 'Other']
+colors = ['r', 'b', 'y', 'k', 'k', 'g']
+alphas = [0.2, 0.4, 0.4, 0.4, 0.2, 0.4]
+
 group_members = {'UC': ['UCB', 'UCD', 'UCLA', 'UCSD', 'UCI', 'UCR', 'UCSB', 'UCSC', 'USCS'],
                  'IfA+US': ['Yale', 'USRA', 'NU', 'IfA', 'Stanford', 'Northwestern'],
                  'Australia': ['ANU', 'Swinburne', 'Swin'],
@@ -128,21 +131,27 @@ def analyze_site_table(t, binsize=29):
         g.add_column(Column(data=frac, name=f'{group} fraction'))
 
     # Bin groups data
-    b = Table(names=['Date'] + group_list + ['Observer Count'],
-              dtype=['a10'] + [int]*(len(group_list)+1))
+    b = Table(names=['Date', 'ndays'] + group_list + ['Observer Count'],
+              dtype=['a10', 'i4'] + [int]*(len(group_list)+1))
     nbinnedrows = int(np.floor(len(g)/binsize))
-    for i in np.arange(0, nbinnedrows, 1):
+    print(f'Generating time binned data. binsize = {binsize} nights')
+    for i in np.arange(0, nbinnedrows+1, 1):
         grows = g[i*binsize:(i+1)*binsize]
-        brow = [grows[0]['Date']]
+        from_date = grows['Date'][0]
+        to_date = grows['Date'][-1]
+        ndays = (datetime.strptime(to_date, '%Y-%m-%d') - datetime.strptime(from_date, '%Y-%m-%d')).days + 1
+        print(f"  Binning from {from_date} to {to_date} ({ndays})")
+        brow = [from_date, ndays]
         brow.extend([0]*(len(group_list)+1))
         for j,group in enumerate(group_list):
-            brow[j+1] = np.sum(grows[group])
+            brow[j+2] = np.sum(grows[group])
         brow[-1] = np.sum(grows['Observer Count'])
         b.add_row(brow)
     for group in group_list:
         frac = b[group]/b['Observer Count']
         b.add_column(Column(data=frac, name=f'{group} fraction'))
-    b.add_column(Column(data=[c/binsize for c in b['Observer Count']],
+    observers_per_night = b['Observer Count']/b['ndays']
+    b.add_column(Column(data=observers_per_night,
                         name='Observers per Night'))
     return t, g, b
 
@@ -169,8 +178,6 @@ def plot_grouped_site_use(t, g):
                  f"{post_mean_observer_count:.1f} mean observers per night ({post_median_observer_count:.1f} median)"
                  )
     plt.title(title_str)
-    colors = ['b', 'y', 'k', 'k', 'r', 'g']
-    alphas = [0.4, 0.4, 0.4, 0.2, 0.2, 0.4]
     previous_fracs = np.zeros(len(g))
     for i,group in enumerate(group_list):
         plt.fill_between(dates,
@@ -192,10 +199,10 @@ def plot_grouped_site_use(t, g):
     cax.set_ylabel('Number of Observers per Night')
     cax.set_ylim(3, 13)
 
-    margin_frac = 0.15
+    margin_frac = 0.12
     margin_days = (max(dates) - min(dates)).days*margin_frac
     plt.xlim(dates[0], dates[-1]+timedelta(days=margin_days))
-    plt.legend(loc='center right')
+    plt.legend(loc='lower right')
 
     plt.savefig('Site_Use_Over_Time.png', bbox_inches='tight')
 #     plt.show()
