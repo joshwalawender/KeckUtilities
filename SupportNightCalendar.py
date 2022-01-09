@@ -274,6 +274,8 @@ def main():
         if from_dto.month > 1 and from_dto.month <= 7:
             ## We are in semester A
             end_dto = dt(from_dto.year, 8, 1)
+        elif from_dto.month == 1:
+            end_dto = dt(from_dto.year, 2, 1)
         else:
             end_dto = dt(from_dto.year+1, 2, 1)
         delta = end_dto - from_dto
