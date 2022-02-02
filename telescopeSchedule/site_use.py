@@ -127,9 +127,14 @@ def analyze_site_table(t, binsize=29, smoothing=14):
     g.add_column(Column(data=observer_count, name='Observer Count'))
 
     woczero = np.where(g['Observer Count'] == 0)
+
+    print(f"Removing {len(g['Date'][woczero])} nights with no observers:")
+    print(g['Date'][woczero])
+    g.remove_rows(woczero)
+
     for group in group_list:
         frac = g[group]/g['Observer Count']
-        frac[woczero] = 0
+#         frac[woczero] = 0
         g.add_column(Column(data=frac, name=f'{group} fraction'))
 
 #     for entry in g:
@@ -295,10 +300,14 @@ def plot_smoothed_site_use(t, g, smoothing=1):
     cax.plot(dates, g['smoothed Observer Count'], 'k-',
                   label='N Observers',
                   drawstyle='steps-post')
-    cax.plot(dates[ids[0]:ids[1]], [pre_median_observer_count]*(ids[1]-ids[0]),
+    cax.plot([dates[ids[0]], dates[ids[1]]], [pre_median_observer_count]*2,
              'r-', label='Pre-pandemic Median', alpha=0.5)
-    cax.plot(dates[ids[2]:ids[3]], [post_median_observer_count]*(len(t)-ids[2]-1),
+    cax.plot([dates[ids[2]], dates[ids[3]]], [post_median_observer_count]*2,
              'b-', label='Post-pandemic Median', alpha=0.5)
+#     cax.plot(dates[ids[0]:ids[1]], [pre_median_observer_count]*(ids[1]-ids[0]),
+#              'r-', label='Pre-pandemic Median', alpha=0.5)
+#     cax.plot(dates[ids[2]:ids[3]], [post_median_observer_count]*(len(t)-ids[2]-1),
+#              'b-', label='Post-pandemic Median', alpha=0.5)
     cax.set_ylabel('Number of Observers per Night')
     cax.set_ylim(0, 15)
 
