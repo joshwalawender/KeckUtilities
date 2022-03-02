@@ -133,41 +133,7 @@ def analyze_site_table(t, binsize=29, smoothing=14):
 
     for group in group_list:
         frac = g[group]/g['Observer Count']
-#         frac[woczero] = 0
         g.add_column(Column(data=frac, name=f'{group} fraction'))
-
-#     for entry in g:
-#         fracs = [entry[f'{group} fraction'] for group in group_list]
-#         total_frac = np.sum(fracs)
-#         if abs(total_frac-1) > 0.05:
-#             print(total_frac)
-#             print(fracs)
-#             print(entry)
-#             print()
-#             sys.exit()
-
-    # Bin groups data
-#     b = Table(names=['Date', 'ndays'] + group_list + ['Observer Count'],
-#               dtype=['a10', 'i4'] + [int]*(len(group_list)+1))
-#     nbinnedrows = int(np.floor(len(g)/binsize))
-#     print(f'Generating time binned data. binsize = {binsize} nights')
-#     for i in np.arange(0, nbinnedrows+1, 1):
-#         grows = g[i*binsize:(i+1)*binsize]
-#         from_date = grows['Date'][0]
-#         to_date = grows['Date'][-1]
-#         ndays = (datetime.strptime(to_date, '%Y-%m-%d') - datetime.strptime(from_date, '%Y-%m-%d')).days + 1
-#         brow = [from_date, ndays]
-#         brow.extend([0]*(len(group_list)+1))
-#         for j,group in enumerate(group_list):
-#             brow[j+2] = np.sum(grows[group])
-#         brow[-1] = np.sum(grows['Observer Count'])
-#         b.add_row(brow)
-#     for group in group_list:
-#         frac = b[group]/b['Observer Count']
-#         b.add_column(Column(data=frac, name=f'{group} fraction'))
-#     observers_per_night = b['Observer Count']/b['ndays']
-#     b.add_column(Column(data=observers_per_night,
-#                         name='Observers per Night'))
 
     # Smooth groups data
     print(f'Generating smoothed data. smoothing scale = {smoothing} nights')
@@ -205,63 +171,14 @@ def analyze_site_table(t, binsize=29, smoothing=14):
     for date in dates_zero:
         data_dict = {'Date': date}
         for key in g.keys():
-            if key not in ['Date', 'smoothed Observer Count']:
+            if key not in ['Date', 'smoothed Observer Count', 'smoothed HQ']:
                 data_dict[key] = 0
         data_dict['smoothed Observer Count'] = np.nan
+        data_dict['smoothed HQ'] = np.nan
         g.add_row(data_dict)
     g.sort('Date')
 
     return t, g#, b
-
-
-# def plot_grouped_site_use(t, g, binsize=1):
-#     dates = [datetime.strptime(d, '%Y-%m-%d') for d in g['Date']]
-#     plt.figure(figsize=(16,8))
-# 
-#     # Pre- vs. Post- Pandemic Observer Counts
-#     ids = [0, 750, 850, -1]
-#     pre_mean_observer_count = np.mean(t[ids[0]:ids[1]]['Observer Count'])
-#     pre_median_observer_count = np.median(t[ids[0]:ids[1]]['Observer Count'])
-#     pre_std_observer_count = np.std(t[ids[0]:ids[1]]['Observer Count'])
-#     post_mean_observer_count = np.mean(t[ids[2]:ids[3]]['Observer Count'])
-#     post_median_observer_count = np.median(t[ids[2]:ids[3]]['Observer Count'])
-#     post_std_observer_count = np.std(t[ids[2]:ids[3]]['Observer Count'])
-#     title_str = (f"Site Use Over Time (data binned over {binsize} nights)\n"
-#                  f"Pre-pandemic ({t[ids[0]]['Date']} to {t[ids[1]]['Date']}) "
-#                  f"{pre_mean_observer_count:.1f} mean observers per night ({pre_median_observer_count:.1f} median) [std dev = {pre_std_observer_count:.1f}]\n"
-#                  f"Post-pandemic ({t[ids[2]]['Date']} to {t[ids[3]]['Date']}) "
-#                  f"{post_mean_observer_count:.1f} mean observers per night ({post_median_observer_count:.1f} median) [std dev = {post_std_observer_count:.1f}]"
-#                  )
-#     print(title_str)
-#     plt.title(title_str)
-#     previous_fracs = np.zeros(len(g))
-#     for i,group in enumerate(group_list):
-#         plt.fill_between(dates,
-#                          previous_fracs,
-#                          previous_fracs+g[f'{group} fraction'],
-#                          facecolor=colors[i], alpha=alphas[i],
-#                          step='post',
-#                          label=group)
-#         previous_fracs += g[f'{group} fraction']
-#     plt.grid()
-#     plt.ylim(0, 1.0)
-#     plt.ylabel('Fraction of Observers')
-#     plt.legend(loc='upper right')
-# 
-#     cax = plt.gca().twinx()
-#     cax.plot_date(dates, g['Observers per Night'], 'k-',
-#                   label='N Observers',
-#                   drawstyle='steps-post')
-#     cax.set_ylabel('Number of Observers per Night')
-#     cax.set_ylim(3, 13)
-# 
-#     margin_frac = 0.12
-#     margin_days = (max(dates) - min(dates)).days*margin_frac
-#     plt.xlim(dates[0], dates[-1]+timedelta(days=margin_days))
-#     plt.legend(loc='center right')
-# 
-#     plt.savefig('Site_Use_Over_Time.png', bbox_inches='tight')
-#     plt.show()
 
 
 def plot_smoothed_site_use(t, g, smoothing=1):
@@ -276,6 +193,23 @@ def plot_smoothed_site_use(t, g, smoothing=1):
     post_mean_observer_count = np.mean(t[ids[2]:ids[3]]['Observer Count'])
     post_median_observer_count = np.median(t[ids[2]:ids[3]]['Observer Count'])
     post_std_observer_count = np.std(t[ids[2]:ids[3]]['Observer Count'])
+
+    HQids = [0, 750, 1220, -1]
+    pre_mean_HQobserver_count = np.mean(t[HQids[0]:HQids[1]]['HQ'])
+    pre_median_HQobserver_count = np.median(t[HQids[0]:HQids[1]]['HQ'])
+    pre_std_HQobserver_count = np.std(t[HQids[0]:HQids[1]]['HQ'])
+    post_mean_HQobserver_count = np.mean(t[HQids[2]:HQids[3]]['HQ'])
+    post_median_HQobserver_count = np.median(t[HQids[2]:HQids[3]]['HQ'])
+    post_std_HQobserver_count = np.std(t[HQids[2]:HQids[3]]['HQ'])
+
+    HQtitle_str = (f"Site Use Over Time (data smoothed over {smoothing} nights)\n"
+                   f"Pre-pandemic ({t[ids[0]]['Date']} to {t[ids[1]]['Date']}) "
+                   f"{pre_mean_HQobserver_count:.1f} mean HQ observers per night ({pre_median_HQobserver_count:.1f} median) [std dev = {pre_std_HQobserver_count:.1f}]\n"
+                   f"Post-pandemic ({t[ids[2]]['Date']} to {t[ids[3]]['Date']}) "
+                   f"{post_mean_HQobserver_count:.1f} mean HQ observers per night ({post_median_HQobserver_count:.1f} median) [std dev = {post_std_HQobserver_count:.1f}]"
+                   )
+    print(HQtitle_str)
+
     title_str = (f"Site Use Over Time (data smoothed over {smoothing} nights)\n"
                  f"Pre-pandemic ({t[ids[0]]['Date']} to {t[ids[1]]['Date']}) "
                  f"{pre_mean_observer_count:.1f} mean observers per night ({pre_median_observer_count:.1f} median) [std dev = {pre_std_observer_count:.1f}]\n"
@@ -295,9 +229,13 @@ def plot_smoothed_site_use(t, g, smoothing=1):
         previous_fracs += g[f'smoothed {group} fraction']
     plt.plot(dates, [-1]*len(dates), 'k-', label='N Observers')
     plt.plot(dates, [-1]*len(dates),
-             'r-', label='Pre-pandemic\nMedian', alpha=0.5)
+             'r-', label='Pre-pandemic\nMean', alpha=0.5)
     plt.plot(dates, [-1]*len(dates),
-             'b-', label='Post-pandemic\nMedian', alpha=0.5)
+             'b-', label='Post-pandemic\nMean', alpha=0.5)
+#     plt.plot(dates, [-1]*len(dates),
+#              'r-', label='Pre-pandemic\nMean at HQ', alpha=0.3)
+#     plt.plot(dates, [-1]*len(dates),
+#              'b-', label='Post-pandemic\nMean at HQ', alpha=0.3)
 
     plt.grid()
     plt.ylim(0, 1.0)
@@ -318,14 +256,17 @@ def plot_smoothed_site_use(t, g, smoothing=1):
     cax.plot(dates, g['smoothed Observer Count'], 'k-',
                   label='N Observers',
                   drawstyle='steps-post')
-    cax.plot([dates[ids[0]], dates[ids[1]]], [pre_median_observer_count]*2,
-             'r-', label='Pre-pandemic Median', alpha=0.5)
-    cax.plot([dates[ids[2]], dates[ids[3]]], [post_median_observer_count]*2,
-             'b-', label='Post-pandemic Median', alpha=0.5)
-#     cax.plot(dates[ids[0]:ids[1]], [pre_median_observer_count]*(ids[1]-ids[0]),
-#              'r-', label='Pre-pandemic Median', alpha=0.5)
-#     cax.plot(dates[ids[2]:ids[3]], [post_median_observer_count]*(len(t)-ids[2]-1),
-#              'b-', label='Post-pandemic Median', alpha=0.5)
+    cax.plot([dates[ids[0]], dates[ids[1]]], [pre_mean_observer_count]*2,
+             'r-', label='Pre-pandemic Mean', alpha=0.5)
+    cax.plot([dates[ids[2]], dates[ids[3]]], [post_mean_observer_count]*2,
+             'b-', label='Post-pandemic Mean', alpha=0.5)
+#     cax.plot(dates, g['smoothed HQ'], 'k-', alpha=0.5,
+#                   label='N HQ Observers',
+#                   drawstyle='steps-post')
+#     cax.plot([dates[HQids[0]], dates[HQids[1]]], [pre_mean_HQobserver_count]*2,
+#              'r-', label='Pre-pandemic Mean at HQ', alpha=0.3)
+#     cax.plot([dates[HQids[2]], dates[HQids[3]]], [post_mean_HQobserver_count]*2,
+#              'b-', label='Post-pandemic Mean at HQ', alpha=0.3)
     cax.set_ylabel('Number of Observers per Night')
     cax.set_ylim(0, 15)
 
