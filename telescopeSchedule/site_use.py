@@ -127,9 +127,8 @@ def analyze_site_table(t, binsize=29, smoothing=14):
     g.add_column(Column(data=observer_count, name='Observer Count'))
 
     woczero = np.where(g['Observer Count'] == 0)
-
-    print(f"Removing {len(g['Date'][woczero])} nights with no observers:")
-    print(g['Date'][woczero])
+    dates_zero = g['Date'][woczero]
+    print(f"Removing {len(g['Date'][woczero])} nights with no observers")
     g.remove_rows(woczero)
 
     for group in group_list:
@@ -202,6 +201,16 @@ def analyze_site_table(t, binsize=29, smoothing=14):
     for group in group_list:
         g.add_column(Column(data=smoothed_group_counts[group], name=f'smoothed {group}'))
         g.add_column(Column(data=smoothed_group_fractions[group], name=f'smoothed {group} fraction'))
+
+    for date in dates_zero:
+        data_dict = {'Date': date}
+        for key in g.keys():
+            if key not in ['Date', 'smoothed Observer Count']:
+                data_dict[key] = 0
+        data_dict['smoothed Observer Count'] = np.nan
+        g.add_row(data_dict)
+    g.sort('Date')
+
     return t, g#, b
 
 
@@ -295,6 +304,15 @@ def plot_smoothed_site_use(t, g, smoothing=1):
     plt.ylabel('Fraction of Observers')
     plt.legend(loc='best')
 #     plt.legend(loc='upper right')
+
+    # Add timeline indicators
+    v1 = datetime.strptime('2020-03-10', '%Y-%m-%d')
+    plt.arrow(v1, 0, dx=0, dy=0.06, color='g')
+    plt.annotate('v1.0', (v1, 0.07), color='g')
+    v2 = datetime.strptime('2020-11-24', '%Y-%m-%d')
+    plt.arrow(v2, 0, dx=0, dy=0.06, color='g')
+    plt.annotate('v2.0', (v2, 0.07), color='g')
+
 
     cax = plt.gca().twinx()
     cax.plot(dates, g['smoothed Observer Count'], 'k-',
