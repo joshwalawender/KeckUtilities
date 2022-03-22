@@ -2,6 +2,7 @@
 
 ## Import General Tools
 import sys
+import argparse
 import re
 from pathlib import Path
 import numpy as np
@@ -27,6 +28,22 @@ group_members = {'UC': ['UCB', 'UCD', 'UCLA', 'UCSD', 'UCI', 'UCR', 'UCSB', 'UCS
                  'Other': ['Other'],
                  'HQ': ['HQ']}
 
+
+##-------------------------------------------------------------------------
+## Parse Command Line Arguments
+##-------------------------------------------------------------------------
+## create a parser object for understanding command-line arguments
+p = argparse.ArgumentParser(description='''
+''')
+## add options
+p.add_argument("-f", "--file", dest="file", type=str, default='',
+    help="File to use?  Query DB if not specified.")
+p.add_argument("--partner", dest="partner", type=str,
+    choices=['NASA', 'UC', 'CIT'],
+    help="Restrict to one partner?")
+args = p.parse_args()
+
+
 ##-------------------------------------------------------------------------
 ## Main Program
 ##-------------------------------------------------------------------------
@@ -34,13 +51,13 @@ def get_site_table_single_query(from_date=None, ndays=5):
     if ndays > 100:
         ndays = 100
     sched = get_telsched(from_date=from_date, ndays=ndays, telnr=None)
-    t = Table(names=['Date'] + site_list,
-              dtype=['a10'] + [int]*len(site_list))
+    t = Table(names=['Date', 'progID'] + site_list,
+              dtype=['a10', 'a10'] + [int]*len(site_list))
 
     for prog in sched:
         if prog['Date'] not in list(t['Date']):
-#             print(f"Adding {prog['Date']}")
-            row = {'Date': prog['Date']}
+            row = {'Date': prog['Date'],
+                   'progID': prog['ProjCode']}
             for site in site_list:
                 row[site] = 0
             t.add_row(row)
@@ -95,20 +112,23 @@ def get_site_table(from_date=None, ndays=5):
     return t
 
 
-def analyze_site_table(t, binsize=29, smoothing=14):
+def analyze_site_table(t, smoothing=14, partner=None):
     # Prepare table with sites grouped by partner
     g = Table(names=['Date'] + group_list,
               dtype=['a10'] + [int]*len(group_list))
+
+    partner_codes = {None: None, 'NASA': 'N', 'CIT': 'C', 'UC': 'U'}
+    partner = partner_codes[partner]
 
     # Add Observer Count Column
     observer_count = []
     for row in t:
         c = 0
-        for col in row.colnames:
-            if type(row[col]) == np.int64 and row[col] > 0:
-                c += row[col]
+        if row['progID'][0] == partner or partner is None:
+            for col in row.colnames:
+                if type(row[col]) == np.int64 and row[col] > 0:
+                    c += row[col]
         observer_count.append(c)
-
         grow = [row['Date']]
         grow.extend([0]*len(group_list))
         g.add_row(grow)
@@ -117,12 +137,15 @@ def analyze_site_table(t, binsize=29, smoothing=14):
                 for group in group_list:
                     if col in group_members[group]:
                         g[-1][group] += row[col]
-        gc = 0
-        for group in group_list:
-            if g[-1][group] > 0:
-                gc += g[-1][group]
-        if c != gc:
-            print(c, gc)
+
+        if row['progID'][0] == partner or partner is None:
+            gc = 0
+            for group in group_list:
+                if g[-1][group] > 0:
+                    gc += g[-1][group]
+            if c != gc:
+                print(c, gc)
+
     t.add_column(Column(data=observer_count, name='Observer Count'))
     g.add_column(Column(data=observer_count, name='Observer Count'))
 
@@ -181,26 +204,30 @@ def analyze_site_table(t, binsize=29, smoothing=14):
     return t, g#, b
 
 
-def plot_smoothed_site_use(t, g, smoothing=1):
+def plot_smoothed_site_use(t, g, smoothing=1, partner=None):
     dates = [datetime.strptime(d, '%Y-%m-%d') for d in g['Date']]
     plt.figure(figsize=(16,8))
 
     # Pre- vs. Post- Pandemic Observer Counts
     ids = [0, 750, 850, -1]
-    pre_mean_observer_count = np.mean(t[ids[0]:ids[1]]['Observer Count'])
-    pre_median_observer_count = np.median(t[ids[0]:ids[1]]['Observer Count'])
-    pre_std_observer_count = np.std(t[ids[0]:ids[1]]['Observer Count'])
-    post_mean_observer_count = np.mean(t[ids[2]:ids[3]]['Observer Count'])
-    post_median_observer_count = np.median(t[ids[2]:ids[3]]['Observer Count'])
-    post_std_observer_count = np.std(t[ids[2]:ids[3]]['Observer Count'])
+    woczero01 = np.where(t[ids[0]:ids[1]]['Observer Count'] != 0)
+    woczero23 = np.where(t[ids[2]:ids[3]]['Observer Count'] != 0)
+    pre_mean_observer_count = np.mean(t[ids[0]:ids[1]][woczero01]['Observer Count'])
+    pre_median_observer_count = np.median(t[ids[0]:ids[1]][woczero01]['Observer Count'])
+    pre_std_observer_count = np.std(t[ids[0]:ids[1]][woczero01]['Observer Count'])
+    post_mean_observer_count = np.mean(t[ids[2]:ids[3]][woczero23]['Observer Count'])
+    post_median_observer_count = np.median(t[ids[2]:ids[3]][woczero23]['Observer Count'])
+    post_std_observer_count = np.std(t[ids[2]:ids[3]][woczero23]['Observer Count'])
 
     HQids = [0, 750, 1220, -1]
-    pre_mean_HQobserver_count = np.mean(t[HQids[0]:HQids[1]]['HQ'])
-    pre_median_HQobserver_count = np.median(t[HQids[0]:HQids[1]]['HQ'])
-    pre_std_HQobserver_count = np.std(t[HQids[0]:HQids[1]]['HQ'])
-    post_mean_HQobserver_count = np.mean(t[HQids[2]:HQids[3]]['HQ'])
-    post_median_HQobserver_count = np.median(t[HQids[2]:HQids[3]]['HQ'])
-    post_std_HQobserver_count = np.std(t[HQids[2]:HQids[3]]['HQ'])
+    woczero01 = np.where(t[HQids[0]:HQids[1]]['Observer Count'] != 0)
+    woczero23 = np.where(t[HQids[2]:HQids[3]]['Observer Count'] != 0)
+    pre_mean_HQobserver_count = np.mean(t[HQids[0]:HQids[1]][woczero01]['HQ'])
+    pre_median_HQobserver_count = np.median(t[HQids[0]:HQids[1]][woczero01]['HQ'])
+    pre_std_HQobserver_count = np.std(t[HQids[0]:HQids[1]][woczero01]['HQ'])
+    post_mean_HQobserver_count = np.mean(t[HQids[2]:HQids[3]][woczero23]['HQ'])
+    post_median_HQobserver_count = np.median(t[HQids[2]:HQids[3]][woczero23]['HQ'])
+    post_std_HQobserver_count = np.std(t[HQids[2]:HQids[3]][woczero23]['HQ'])
 
     HQtitle_str = (f"Site Use Over Time (data smoothed over {smoothing} nights)\n"
                    f"Pre-pandemic ({t[ids[0]]['Date']} to {t[ids[1]]['Date']}) "
@@ -275,7 +302,11 @@ def plot_smoothed_site_use(t, g, smoothing=1):
     plt.xlim(dates[0], dates[-1]+timedelta(days=margin_days))
 #     plt.legend(loc='center right')
 
-    plt.savefig('Site_Use_Over_Time.png', bbox_inches='tight')
+    filename = f"Site_Use_Over_Time"
+    if partner is not None:
+        filename+= f'_{partner}'
+    filename += '.png'
+    plt.savefig(filename, bbox_inches='tight')
 #     plt.show()
 
 
@@ -283,7 +314,12 @@ def plot_smoothed_site_use(t, g, smoothing=1):
 if __name__ == '__main__':
     from_date = '2018-02-01'
     ndays = (datetime.now() - datetime.strptime(from_date, '%Y-%m-%d')).days
-    file = Path(f'site_use_{ndays}days_from_{from_date}.csv')
+
+    if args.file != '':
+        file = Path(args.file)
+    else:
+        file = Path(f'site_use_{ndays}days_from_{from_date}.csv')
+
     if file.exists() is False:
         print('Querying database')
         t = get_site_table(from_date=from_date, ndays=ndays)
@@ -292,8 +328,6 @@ if __name__ == '__main__':
         print('Reading file on disk')
         t = Table.read(file)
 
-    binsize = 29
     smoothing = 29
-    t, g = analyze_site_table(t, binsize=binsize, smoothing=smoothing)
-    plot_smoothed_site_use(t, g, smoothing=smoothing)
-    
+    t, g = analyze_site_table(t, smoothing=smoothing, partner=args.partner)
+    plot_smoothed_site_use(t, g, smoothing=smoothing, partner=args.partner)
