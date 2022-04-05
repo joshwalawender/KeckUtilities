@@ -118,6 +118,20 @@ def get_user_info(date, inst):
     return querydb(req)
 
 
+def get_observer_info_from_lastname(lastname):
+    '''cmd=getObserverInfo&last=lastname
+    '''
+    if lastname == '':
+        return {'Id': '',
+                'Email': '',
+                'FirstName': '',
+                'LastName': '',
+                'Phone': '',
+                'username': ''}
+    req = f"cmd=getObserverInfo&last={lastname}"
+    return querydb(req)
+
+
 def get_observer_info(obsid):
     '''cmd=getObserverInfo&obsid=#
     '''
