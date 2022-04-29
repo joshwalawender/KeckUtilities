@@ -43,23 +43,49 @@ progID_names = {'Y': 'yale',
                 'D': 'd',
                 }
 
+progID_city = {'yale': 'New York',
+               'nasa': 'City and County of Denver',
+               'uc': 'San Francisco',
+               'caltech': 'Los Angeles',
+               'cit': 'Los Angeles',
+               'uh': 'Honolulu',
+               'engineering': 'Honolulu',
+               'subaru': 'Tokyo',
+               'keck': 'Honolulu',
+               'northwestern': 'Chicago',
+               'noirlab': 'City and County of Denver',
+               'swinburne': 'Melbourne',
+               'z': 'Honolulu',
+               'd': 'Honolulu',
+               'other': 'Honolulu',
+               }
+
+emissions_table = Table.read('emissions_by_city.csv', format='ascii.csv')
+
+progID_emissions = {}
+for progID in progID_city.keys():
+    city = progID_city[progID]
+    w = emissions_table['city'] == city
+    progID_emissions[progID] = float(emissions_table[w]['co2_kg']/1000)
+
+
 # Using https://www.carbonfootprint.com/calculator.aspx
-progID_emissions = {'yale': 2.24, # JFK-SFO-KOA
-                    'nasa': 1.51, # DEN-SFO-KOA
-                    'uc': 1.07, # SFO-KOA
-                    'caltech': 1.13, # LAX-KOA
-                    'cit': 1.13, # LAX-KOA
-                    'uh': 0.07, # HNL-KOA
-                    'engineering': 0,
-                    'subaru': 1.81, # HND-KOA
-                    'keck': 0,
-                    'northwestern': 1.91, # CHI-SFO-KOA
-                    'noirlab': 1.51, # DEN-SFO-KOA
-                    'swinburne': 2.50, # MEL-SYD-KOA
-                    'z': 0,
-                    'd': 0,
-                    'other': 0,
-                }
+# progID_emissions = {'yale': 2.24, # JFK-SFO-KOA
+#                     'nasa': 1.51, # DEN-SFO-KOA
+#                     'uc': 1.07, # SFO-KOA
+#                     'caltech': 1.13, # LAX-KOA
+#                     'cit': 1.13, # LAX-KOA
+#                     'uh': 0.07, # HNL-KOA
+#                     'engineering': 0,
+#                     'subaru': 1.81, # HND-KOA
+#                     'keck': 0,
+#                     'northwestern': 1.91, # CHI-SFO-KOA
+#                     'noirlab': 1.51, # DEN-SFO-KOA
+#                     'swinburne': 2.50, # MEL-SYD-KOA
+#                     'z': 0,
+#                     'd': 0,
+#                     'other': 0,
+#                 }
 
 ##-------------------------------------------------------------------------
 ## Parse Command Line Arguments
@@ -416,9 +442,11 @@ def plot_smoothed_site_use(t, g, smoothing=1, partner=None):
                          step='post',
                          label=group)
         previous_fracs += g[f'smoothed {group} fraction']
-    plt.plot(dates, [-1]*len(dates), 'k-', label='N Observers')
+    plt.plot(dates, [-1]*len(dates), 'k-', label='Emissions')
     plt.plot(dates, [-1]*len(dates),
              'r-', label='Pre-pandemic\nMean', alpha=0.5)
+    plt.plot(dates, [-1]*len(dates),
+             'g-', label='HQ Closed\nMean', alpha=0.5)
     plt.plot(dates, [-1]*len(dates),
              'b-', label='Post-pandemic\nMean', alpha=0.5)
 

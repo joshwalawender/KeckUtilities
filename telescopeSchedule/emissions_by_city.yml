@@ -1,0 +1,375 @@
+cities: &id001
+- address: Honolulu, Honolulu County, Hawaii, United States
+  city: Honolulu
+  country: ' United States'
+  distance: 0.0
+  footprint: 0.0
+  latitude: 21.304547
+  location: Honolulu,  United States
+  longitude: -157.855676
+  plane_trips: 1
+  train_trips: 0
+- address: San Francisco, California, United States
+  city: San Francisco
+  country: ' United States'
+  distance: 7707.937501164774
+  footprint: 1277.4390324162625
+  latitude: 37.7790262
+  location: San Francisco,  United States
+  longitude: -122.419906
+  plane_trips: 1
+  train_trips: 0
+- address: Los Angeles, California, United States
+  city: Los Angeles
+  country: ' United States'
+  distance: 8239.870197907612
+  footprint: 1363.2620655130538
+  latitude: 34.0536909
+  location: Los Angeles,  United States
+  longitude: -118.242766
+  plane_trips: 1
+  train_trips: 0
+- address: City and County of Denver, Colorado, United States
+  city: City and County of Denver
+  country: ' United States'
+  distance: 10750.34282665193
+  footprint: 1768.3064946760053
+  latitude: 39.7392364
+  location: City and County of Denver,  United States
+  longitude: -104.9848623
+  plane_trips: 1
+  train_trips: 0
+- address: Tokyo, Japan
+  city: Tokyo
+  country: ' Japan'
+  distance: 12399.816544526097
+  footprint: 2034.435721828666
+  latitude: 35.6828387
+  location: Tokyo,  Japan
+  longitude: 139.7594549
+  plane_trips: 1
+  train_trips: 0
+- address: Chicago, Cook County, Illinois, United States
+  city: Chicago
+  country: ' United States'
+  distance: 13677.040805307084
+  footprint: 2240.5055135076395
+  latitude: 41.8755616
+  location: Chicago,  United States
+  longitude: -87.6244212
+  plane_trips: 1
+  train_trips: 0
+- address: New York, United States
+  city: New York
+  country: ' United States'
+  distance: 15963.461283763872
+  footprint: 2609.4009425672375
+  latitude: 40.7127281
+  location: New York,  United States
+  longitude: -74.0060152
+  plane_trips: 1
+  train_trips: 0
+- address: Sydney, New South Wales, Australia
+  city: Sydney
+  country: ' Australia'
+  distance: 16329.169578647323
+  footprint: 2668.405014487876
+  latitude: -33.8548157
+  location: Sydney,  Australia
+  longitude: 151.2164539
+  plane_trips: 1
+  train_trips: 0
+- address: Melbourne, City of Melbourne, Victoria, Australia
+  city: Melbourne
+  country: ' Australia'
+  distance: 17758.79085937656
+  footprint: 2899.062831244004
+  latitude: -37.8142176
+  location: Melbourne,  Australia
+  longitude: 144.9631608
+  plane_trips: 1
+  train_trips: 0
+distance: 102826.42959734525
+footprint: 16860.817616240747
+footprints:
+  ademe-rfi:
+    cities:
+    - address: Honolulu, Honolulu County, Hawaii, United States
+      city: Honolulu
+      country: ' United States'
+      distance: 0.0
+      footprint: 0.0
+      latitude: 21.304547
+      location: Honolulu,  United States
+      longitude: -157.855676
+      plane_trips: 1
+      train_trips: 0
+    - address: San Francisco, California, United States
+      city: San Francisco
+      country: ' United States'
+      distance: 7707.9375011647735
+      footprint: 1230.186825185898
+      latitude: 37.7790262
+      location: San Francisco,  United States
+      longitude: -122.419906
+      plane_trips: 1
+      train_trips: 0
+    - address: Los Angeles, California, United States
+      city: Los Angeles
+      country: ' United States'
+      distance: 8239.870197907612
+      footprint: 1315.083283586055
+      latitude: 34.0536909
+      location: Los Angeles,  United States
+      longitude: -118.242766
+      plane_trips: 1
+      train_trips: 0
+    - address: City and County of Denver, Colorado, United States
+      city: City and County of Denver
+      country: ' United States'
+      distance: 10750.34282665193
+      footprint: 1715.754715133648
+      latitude: 39.7392364
+      location: City and County of Denver,  United States
+      longitude: -104.9848623
+      plane_trips: 1
+      train_trips: 0
+    - address: Tokyo, Japan
+      city: Tokyo
+      country: ' Japan'
+      distance: 12399.816544526097
+      footprint: 1979.010720506365
+      latitude: 35.6828387
+      location: Tokyo,  Japan
+      longitude: 139.7594549
+      plane_trips: 1
+      train_trips: 0
+    - address: Chicago, Cook County, Illinois, United States
+      city: Chicago
+      country: ' United States'
+      distance: 13677.040805307084
+      footprint: 2182.8557125270104
+      latitude: 41.8755616
+      location: Chicago,  United States
+      longitude: -87.6244212
+      plane_trips: 1
+      train_trips: 0
+    - address: New York, United States
+      city: New York
+      country: ' United States'
+      distance: 15963.461283763872
+      footprint: 2547.768420888714
+      latitude: 40.7127281
+      location: New York,  United States
+      longitude: -74.0060152
+      plane_trips: 1
+      train_trips: 0
+    - address: Sydney, New South Wales, Australia
+      city: Sydney
+      country: ' Australia'
+      distance: 16329.169578647325
+      footprint: 2606.135464752113
+      latitude: -33.8548157
+      location: Sydney,  Australia
+      longitude: 151.2164539
+      plane_trips: 1
+      train_trips: 0
+    - address: Melbourne, City of Melbourne, Victoria, Australia
+      city: Melbourne
+      country: ' Australia'
+      distance: 17758.79085937656
+      footprint: 2834.303021156499
+      latitude: -37.8142176
+      location: Melbourne,  Australia
+      longitude: 144.9631608
+      plane_trips: 1
+      train_trips: 0
+  defra-rfi:
+    cities:
+    - address: Honolulu, Honolulu County, Hawaii, United States
+      city: Honolulu
+      country: ' United States'
+      distance: 0.0
+      footprint: 0.0
+      latitude: 21.304547
+      location: Honolulu,  United States
+      longitude: -157.855676
+      plane_trips: 1
+      train_trips: 0
+    - address: San Francisco, California, United States
+      city: San Francisco
+      country: ' United States'
+      distance: 7707.9375011647735
+      footprint: 1181.902305127282
+      latitude: 37.7790262
+      location: San Francisco,  United States
+      longitude: -122.419906
+      plane_trips: 1
+      train_trips: 0
+    - address: Los Angeles, California, United States
+      city: Los Angeles
+      country: ' United States'
+      distance: 8239.870197907612
+      footprint: 1262.0045152292462
+      latitude: 34.0536909
+      location: Los Angeles,  United States
+      longitude: -118.242766
+      plane_trips: 1
+      train_trips: 0
+    - address: City and County of Denver, Colorado, United States
+      city: City and County of Denver
+      country: ' United States'
+      distance: 10750.34282665193
+      footprint: 1640.0493453257232
+      latitude: 39.7392364
+      location: City and County of Denver,  United States
+      longitude: -104.9848623
+      plane_trips: 1
+      train_trips: 0
+    - address: Tokyo, Japan
+      city: Tokyo
+      country: ' Japan'
+      distance: 12399.816544526097
+      footprint: 1888.4388335370493
+      latitude: 35.6828387
+      location: Tokyo,  Japan
+      longitude: 139.7594549
+      plane_trips: 1
+      train_trips: 0
+    - address: Chicago, Cook County, Illinois, United States
+      city: Chicago
+      country: ' United States'
+      distance: 13677.040805307084
+      footprint: 2080.7723499966796
+      latitude: 41.8755616
+      location: Chicago,  United States
+      longitude: -87.6244212
+      plane_trips: 1
+      train_trips: 0
+    - address: New York, United States
+      city: New York
+      country: ' United States'
+      distance: 15963.461283763872
+      footprint: 2425.077813203279
+      latitude: 40.7127281
+      location: New York,  United States
+      longitude: -74.0060152
+      plane_trips: 1
+      train_trips: 0
+    - address: Sydney, New South Wales, Australia
+      city: Sydney
+      country: ' Australia'
+      distance: 16329.169578647325
+      footprint: 2480.148770209984
+      latitude: -33.8548157
+      location: Sydney,  Australia
+      longitude: 151.2164539
+      plane_trips: 1
+      train_trips: 0
+    - address: Melbourne, City of Melbourne, Victoria, Australia
+      city: Melbourne
+      country: ' Australia'
+      distance: 17758.79085937656
+      footprint: 2695.431314216815
+      latitude: -37.8142176
+      location: Melbourne,  Australia
+      longitude: 144.9631608
+      plane_trips: 1
+      train_trips: 0
+  my-climate-rfi:
+    cities:
+    - address: Honolulu, Honolulu County, Hawaii, United States
+      city: Honolulu
+      country: ' United States'
+      distance: 0.0
+      footprint: 0.0
+      latitude: 21.304547
+      location: Honolulu,  United States
+      longitude: -157.855676
+      plane_trips: 1
+      train_trips: 0
+    - address: San Francisco, California, United States
+      city: San Francisco
+      country: ' United States'
+      distance: 7707.9375011647735
+      footprint: 1420.2279669356076
+      latitude: 37.7790262
+      location: San Francisco,  United States
+      longitude: -122.419906
+      plane_trips: 1
+      train_trips: 0
+    - address: Los Angeles, California, United States
+      city: Los Angeles
+      country: ' United States'
+      distance: 8239.870197907612
+      footprint: 1512.6983977238606
+      latitude: 34.0536909
+      location: Los Angeles,  United States
+      longitude: -118.242766
+      plane_trips: 1
+      train_trips: 0
+    - address: City and County of Denver, Colorado, United States
+      city: City and County of Denver
+      country: ' United States'
+      distance: 10750.34282665193
+      footprint: 1949.1154235686447
+      latitude: 39.7392364
+      location: City and County of Denver,  United States
+      longitude: -104.9848623
+      plane_trips: 1
+      train_trips: 0
+    - address: Tokyo, Japan
+      city: Tokyo
+      country: ' Japan'
+      distance: 12399.816544526097
+      footprint: 2235.8576114425828
+      latitude: 35.6828387
+      location: Tokyo,  Japan
+      longitude: 139.7594549
+      plane_trips: 1
+      train_trips: 0
+    - address: Chicago, Cook County, Illinois, United States
+      city: Chicago
+      country: ' United States'
+      distance: 13677.040805307084
+      footprint: 2457.8884779992286
+      latitude: 41.8755616
+      location: Chicago,  United States
+      longitude: -87.6244212
+      plane_trips: 1
+      train_trips: 0
+    - address: New York, United States
+      city: New York
+      country: ' United States'
+      distance: 15963.461283763872
+      footprint: 2855.3565936097193
+      latitude: 40.7127281
+      location: New York,  United States
+      longitude: -74.0060152
+      plane_trips: 1
+      train_trips: 0
+    - address: Sydney, New South Wales, Australia
+      city: Sydney
+      country: ' Australia'
+      distance: 16329.169578647325
+      footprint: 2918.9308085015314
+      latitude: -33.8548157
+      location: Sydney,  Australia
+      longitude: 151.2164539
+      plane_trips: 1
+      train_trips: 0
+    - address: Melbourne, City of Melbourne, Victoria, Australia
+      city: Melbourne
+      country: ' Australia'
+      distance: 17758.79085937656
+      footprint: 3167.454158358698
+      latitude: -37.8142176
+      location: Melbourne,  Australia
+      longitude: 144.9631608
+      plane_trips: 1
+      train_trips: 0
+mean_footprint:
+  cities: *id001
+plane_trips: 9
+total: 16860.817616240747
+train_trips: 0

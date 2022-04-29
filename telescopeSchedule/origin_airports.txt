@@ -1,0 +1,10 @@
+City,Country
+Sydney,Australia
+Melbourne,Australia
+Los Angeles,United States
+San Francisco,United States
+Denver,United States
+New York,United States
+Honolulu,United States
+Tokyo,Japan
+Chicago,United States
