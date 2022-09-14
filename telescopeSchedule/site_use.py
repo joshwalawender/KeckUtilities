@@ -176,31 +176,6 @@ def estimate_emissions(t):
     emissions = []
     for entry in t:
         if entry['HQ'] > 0 and entry['progID'][0] not in ['E', 'K']:
-#             institutions = []
-#             these_emissions = 0
-#             for observer in entry['Observers'].split(','):
-#                 observer_info = get_observer_info_from_lastname(observer)
-#                 if len(observer_info) > 1:
-#                     # Cull list of observer name results: remove imperfect matches
-#                     remove = []
-#                     for i,oinfo in enumerate(observer_info):
-#                         if oinfo['LastName'].lower() != observer.lower():
-#                             remove.append(i)
-#                     for j,r in enumerate(remove):
-#                         observer_info.pop(r-j)
-#                 if len(observer_info) > 1:
-#                     print(f"Found {len(observer_info)} entries for {observer}")
-#                 alloc_inst = observer_info[0].get('AllocInst', None)
-#                 institutions.append(alloc_inst)
-# 
-#             for inst in institutions:
-#                 if inst.lower() not in progID_emissions.keys():
-#                     print(f"{inst} no emissions data for inst")
-#                 else:
-#                     these_emissions += progID_emissions[inst.lower()]
-# 
-#             travel.append(','.join(institutions))
-#             emissions.append(these_emissions)
             travel.append(f"{entry['HQ']}x {progID_names[entry['progID'][0]]}")
             inst = progID_names[entry['progID'][0]]
             emissions.append(entry['HQ']*progID_emissions[inst])
@@ -423,11 +398,11 @@ def plot_smoothed_site_use(t, g, smoothing=1, partner=None):
 
     title_str = (f"Emissions Over Time (data smoothed over {smoothing} nights)\n"
                  f"Pre-pandemic ({t[ids[0]]['Date']} to {t[ids[1]]['Date']}) "
-                 f"{pre_mean_emissions:.2f} tCO2e/night [std dev = {pre_std_emissions:.2f}]\n"
+                 f"{pre_mean_emissions:.2f} tCO2e/night ({pre_mean_emissions*365:.0f} tCO2e/year)\n"
                  f"HQ Shutdown ({t[ids[2]]['Date']} to {t[ids[3]]['Date']}) "
-                 f"{shutdown_mean_emissions:.2f} tCO2e/night [std dev = {shutdown_std_emissions:.2f}]\n"
+                 f"{shutdown_mean_emissions:.2f} tCO2e/night ({shutdown_mean_emissions*365:.0f} tCO2e/year)\n"
                  f"Post-pandemic ({t[ids[4]]['Date']} to {t[ids[5]]['Date']}) "
-                 f"{post_mean_emissions:.2f} tCO2e/night [std dev = {post_std_emissions:.2f}]"
+                 f"{post_mean_emissions:.2f} tCO2e/night ({post_mean_emissions*365:.0f} tCO2e/year)"
                  )
     print()
     print(title_str)
@@ -435,13 +410,14 @@ def plot_smoothed_site_use(t, g, smoothing=1, partner=None):
 
     previous_fracs = np.zeros(len(g))
     for i,group in enumerate(group_list):
-        plt.fill_between(dates,
-                         previous_fracs,
-                         previous_fracs+g[f'smoothed {group} fraction'],
-                         facecolor=colors[i], alpha=alphas[i],
-                         step='post',
-                         label=group)
-        previous_fracs += g[f'smoothed {group} fraction']
+        if group == 'HQ':
+            plt.fill_between(dates,
+                             previous_fracs,
+                             previous_fracs+g[f'smoothed {group} fraction'],
+                             facecolor=colors[i], alpha=alphas[i],
+                             step='post',
+                             label=group)
+            previous_fracs += g[f'smoothed {group} fraction']
     plt.plot(dates, [-1]*len(dates), 'k-', label='Emissions')
     plt.plot(dates, [-1]*len(dates),
              'r-', label='Pre-pandemic\nMean', alpha=0.5)
