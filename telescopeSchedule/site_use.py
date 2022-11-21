@@ -366,7 +366,7 @@ def plot_smoothed_site_use(t, g, smoothing=1, partner=None):
     cax.set_ylabel('Number of Observers per Night')
     cax.set_ylim(0, 15)
 
-    margin_frac = 0.15
+    margin_frac = 0.16
     margin_days = (max(dates) - min(dates)).days*margin_frac
     plt.xlim(dates[0], dates[-1]+timedelta(days=margin_days))
 #     plt.legend(loc='center right')
@@ -444,7 +444,7 @@ def plot_smoothed_site_use(t, g, smoothing=1, partner=None):
     cax.set_ylabel('Emissions (tCO2e / night)')
 #     cax.set_ylim(0, 15)
 
-    margin_frac = 0.15
+    margin_frac = 0.16
     margin_days = (max(dates) - min(dates)).days*margin_frac
     plt.xlim(dates[0], dates[-1]+timedelta(days=margin_days))
 #     plt.legend(loc='center right')
