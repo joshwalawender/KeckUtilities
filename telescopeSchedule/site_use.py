@@ -13,8 +13,9 @@ from telescopeSchedule import get_telsched, get_observer_info_from_lastname
 
 from matplotlib import pyplot as plt
 
-site_list = sorted(['ANU', 'CIT', 'UCB', 'UCD', 'UCLA', 'UCSD', 'UCI', 'UCR', 'Yale',
-                    'USRA', 'NU', 'HQ', 'IfA', 'Stanford', 'Swinburne', 'UCSB', 'UCSC'])
+site_list = sorted(['ANU', 'CIT', 'UCB', 'UCD', 'UCLA', 'UCSD', 'UCI', 'UCR',
+                    'Yale', 'USRA', 'NU', 'HQ', 'IfA', 'Stanford', 'Swinburne',
+                    'UCSB', 'UCSC', 'IPAC'])
 site_list.append('Other')
 
 group_list = ['HQ', 'UC', 'CIT', 'IfA+US', 'Australia', 'Other']
@@ -22,7 +23,7 @@ colors = ['r', 'b', 'y', 'k', 'k', 'g']
 alphas = [0.2, 0.4, 0.4, 0.4, 0.2, 0.4]
 
 group_members = {'UC': ['UCB', 'UCD', 'UCLA', 'UCSD', 'UCI', 'UCR', 'UCSB', 'UCSC', 'USCS'],
-                 'IfA+US': ['Yale', 'USRA', 'NU', 'IfA', 'Stanford', 'Northwestern'],
+                 'IfA+US': ['Yale', 'USRA', 'NU', 'IfA', 'Stanford', 'Northwestern', 'IPAC'],
                  'Australia': ['ANU', 'Swinburne', 'Swin'],
                  'CIT': ['CIT'],
                  'Other': ['Other'],
@@ -69,24 +70,6 @@ for progID in progID_city.keys():
     progID_emissions[progID] = float(emissions_table[w]['co2_kg']/1000)
 
 
-# Using https://www.carbonfootprint.com/calculator.aspx
-# progID_emissions = {'yale': 2.24, # JFK-SFO-KOA
-#                     'nasa': 1.51, # DEN-SFO-KOA
-#                     'uc': 1.07, # SFO-KOA
-#                     'caltech': 1.13, # LAX-KOA
-#                     'cit': 1.13, # LAX-KOA
-#                     'uh': 0.07, # HNL-KOA
-#                     'engineering': 0,
-#                     'subaru': 1.81, # HND-KOA
-#                     'keck': 0,
-#                     'northwestern': 1.91, # CHI-SFO-KOA
-#                     'noirlab': 1.51, # DEN-SFO-KOA
-#                     'swinburne': 2.50, # MEL-SYD-KOA
-#                     'z': 0,
-#                     'd': 0,
-#                     'other': 0,
-#                 }
-
 ##-------------------------------------------------------------------------
 ## Parse Command Line Arguments
 ##-------------------------------------------------------------------------
@@ -109,21 +92,56 @@ def get_site_table_single_query(from_date=None, ndays=5):
     if ndays > 100:
         ndays = 100
     sched = get_telsched(from_date=from_date, ndays=ndays, telnr=None)
-    t = Table(names=['Date', 'progID', 'Observers', 'PiFirstName', 'PiLastName', 'PiId'] + site_list,
-              dtype=['a10', 'a10', 'a100', 'a50', 'a50', 'i4'] + [int]*len(site_list))
+    for site in site_list:
+        sched.add_column(Column(name=site, data=np.zeros(len(sched), dtype=int)))
+    for i,prog in enumerate(sched):
+        # Fix Bad entry
+        if prog['Location'] == 'CIT. Hirsch,CIT,UCB,CIT':
+            sched[i]['Location'] = 'CIT,CIT,UCB,CIT'
+            prog['Location'] = 'CIT,CIT,UCB,CIT'
+        # Check if number of sites matches number of observer names
+        these_sites = prog['Location'].split(',')
+        these_observers = prog['Observers'].split(',')
+        while len(these_sites) != len(these_observers):
+            if len(these_sites) > len(these_observers):
+                print(f'{prog["Date"]}: N sites > N observers: removing last site')
+                print(these_observers)
+                print(these_sites)
+                these_sites.pop()
+            elif len(these_sites) < len(these_observers):
+                print(f'{prog["Date"]}: N sites < N observers: adding site Other')
+                these_sites.append('Other')
+        # Now fill out new columns with observer counts
+        for site in these_sites:
+            if site in site_list:
+                sched[i][site] += 1
+            elif site == 'Swin':
+                sched[i]['Swinburne'] += 1
+            elif site == 'Northwestern':
+                sched[i]['NU'] += 1
+            elif site == 'USCS':
+                sched[i]['UCSC'] += 1
+            elif site == 'NASA':
+                sched[i]['Other'] += 1
+            elif site == '':
+                pass
+            else:
+                print(f"Unrecognized site '{site}'")
 
-    for prog in sched:
+    t = Table(names=['Date', 'Observers'] + site_list,
+              dtype=['a10',  'a100'] + [int]*len(site_list))
+    for i,prog in enumerate(sched):
         if prog['Date'] not in list(t['Date']):
             row = {'Date': prog['Date'],
                    'Observers': prog['Observers'],
-                   'progID': prog['ProjCode']}
+                   }
             for site in site_list:
                 row[site] = 0
             t.add_row(row)
         if prog['Location'] == 'CIT. Hirsch,CIT,UCB,CIT':
-            tonights_sites = 'CIT,CIT,UCB,CIT'.split(',')
-        else:
-            tonights_sites = prog['Location'].split(',')
+            tonights_sites = 'CIT,CIT,UCB,CIT'
+            sched[i]['Location'] = tonights_sites
+        tonights_sites = prog['Location'].split(',')
         tonights_observers = prog['Observers'].split(',')
         while len(tonights_sites) != len(tonights_observers):
             if len(tonights_sites) > len(tonights_observers):
@@ -135,10 +153,6 @@ def get_site_table_single_query(from_date=None, ndays=5):
         t.add_index('Date')
         rowid = t.loc_indices[prog['Date']]
         for entry in tonights_sites:
-            if entry == 'CIT. Hirsch':
-                print(tonights_sites)
-                print('Correcting comma')
-                entry = 'CIT, Hirsch'
             if entry in site_list:
                 t[rowid][entry] += 1
             elif entry == 'Swin':
@@ -154,21 +168,22 @@ def get_site_table_single_query(from_date=None, ndays=5):
             else:
                 print(f'Unmatched entry: "{entry}"')
 
-    return t
+    return t, sched
 
 
 def get_site_table(from_date=None, ndays=5):
-    t = get_site_table_single_query(from_date=from_date, ndays=ndays)
+    t, sched = get_site_table_single_query(from_date=from_date, ndays=ndays)
     last_date = datetime.strptime(t['Date'][-1], '%Y-%m-%d') + timedelta(days=1)
     while len(t) < ndays:
         need_more_days = ndays - len(t)
         print(f"At {last_date.strftime('%Y-%m-%d')}, Need {need_more_days} more days")
-        new_t = get_site_table_single_query(
-                         from_date=last_date.strftime('%Y-%m-%d'),
-                         ndays=need_more_days)
+        new_t, new_sched = get_site_table_single_query(
+                           from_date=last_date.strftime('%Y-%m-%d'),
+                           ndays=need_more_days)
         t = vstack([t, new_t])
+        sched = vstack([sched, new_sched])
         last_date = datetime.strptime(t['Date'][-1], '%Y-%m-%d') + timedelta(days=1)
-    return t
+    return t, sched
 
 
 def estimate_emissions(t):
@@ -457,26 +472,55 @@ def plot_smoothed_site_use(t, g, smoothing=1, partner=None):
 #     plt.show()
 
 
+def collect_NASA_site_statistics(sched):
+    nasa = sched[sched['Institution'] == 'NASA']
+    output_keys = ['Date', 'Semester', 'Institution', 'ProjCode', 'FractionOfNight', 'PiFirstName', 'PiLastName', 'ANU', 'CIT', 'HQ', 'IPAC', 'IfA', 'NU', 'Stanford', 'Swinburne', 'UCB', 'UCD', 'UCI', 'UCLA', 'UCR', 'UCSB', 'UCSC', 'UCSD', 'USRA', 'Yale', 'Other']
+    nasa[output_keys].write('NASA_use_table.csv', format='ascii.csv', overwrite=True)
 
+    semesters = ['2018A', '2018B', '2019A', '2019B', '2020A', '2020B', '2021A',
+                 '2021B', '2022A', '2022B']
+
+    print(f"# Observer Count and Weighted Count by Semester")
+    title_line = f"Site      "
+    for semester in semesters:
+        title_line += f" | {semester:>11s}"
+    title_line += " |        Totals"
+    print(title_line)
+    for site in site_list:
+        tot = np.sum(nasa[site])
+        wtot = np.sum(nasa[site]*nasa['FractionOfNight'])
+        line = f"{site:10s}"
+        for semester in semesters:
+            s = nasa[nasa['Semester'] == semester]
+            stot = np.sum(s[site])
+            swtot = np.sum(s[site]*s['FractionOfNight'])
+            line += f" | {stot:4d} {swtot:6.2f}"
+        line += f" | {tot:4d} {wtot:8.2f}"
+        print(line)
 
 
 
 if __name__ == '__main__':
+#     from_date = '2023-01-01'
     from_date = '2018-02-01'
     ndays = (datetime.now() - datetime.strptime(from_date, '%Y-%m-%d')).days
 
     if args.file != '':
         file = Path(args.file)
+        schedfile = file.parent / Path(file.name.replace('site_use', 'sched'))
     else:
         file = Path(f'site_use_{ndays}days_from_{from_date}.csv')
+        schedfile = Path(f'sched_{ndays}days_from_{from_date}.csv')
 
     if file.exists() is False:
         print('Querying database')
-        t = get_site_table(from_date=from_date, ndays=ndays)
+        t, sched = get_site_table(from_date=from_date, ndays=ndays)
         t.write(file, format='ascii.csv')
+        sched.write(schedfile, format='ascii.csv')
     else:
         print('Reading file on disk')
         t = Table.read(file)
+        sched = Table.read(schedfile)
 
     t = estimate_emissions(t)
 
@@ -484,8 +528,4 @@ if __name__ == '__main__':
     t, g = analyze_site_table(t, smoothing=smoothing, partner=args.partner)
     plot_smoothed_site_use(t, g, smoothing=smoothing, partner=args.partner)
 
-#     wt = np.where(t['Travel'] != '')
-#     print(t[wt]['Date', 'progID', 'Travel', 'Emissions'])
-
-#     wunknown = np.where(t[wt]['Emissions'] < 0.01)
-#     print(t[wt][wunknown]['Date', 'progID', 'Travel', 'Emissions'])
+    collect_NASA_site_statistics(sched)
