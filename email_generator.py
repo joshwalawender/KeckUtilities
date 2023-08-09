@@ -68,7 +68,9 @@ def main():
                         email_list = []
                     email_list.extend( [u['Email'] for u in observers_info\
                         if u['Email'] != prog['PiEmail'] ] )
-                    print('To: ' + ', '.join(email_list))
+                    print('To:')
+                    print(', '.join(email_list))
+                    print('; '.join(email_list))
 
                     email = f"Keck {prog['Instrument']} observing on "
                     email += f"{date_name}\n\n"
