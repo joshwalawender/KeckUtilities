@@ -363,10 +363,35 @@ def main():
         print(f"  For {month}: {nsupport:2d} / {nnights:2d} nights ({100*nsupport/nnights:4.1f} %)")
 
     byinst = sasched.group_by('Instrument')
-    inst_nights = Table(names=('Instrument', 'NightCount'), dtype=('a12', 'i4'))
+    inst_nights = Table(names=('Instrument', 'ProgramCount', 'NightCount', 'WholeNights', 'PartialNights'),
+                        dtype=('a12', 'i4', 'i4', 'i4', 'i4'))
     for group in byinst.groups:
-        inst_nights.add_row({'Instrument': group['Instrument'][0],
-                             'NightCount': len(group)})
+        inst = group['Instrument'][0]
+        whole_nights = []
+        partial_nights = []
+        nights = set(group['Date'])
+        programs = set(group['ProjCode'])
+#         print(f"For {inst}:")
+#         print(f"  {nights}")
+        for night in nights:
+            this_night = group[group['Date'] == night]
+            frac = np.sum(this_night['FractionOfNight'])
+            if frac > 0.999 and frac < 1.001:
+                whole_nights.append(night)
+            elif frac < 0.999:
+                partial_nights.append(night)
+            else:
+                print(group)
+        data = {'Instrument': inst,
+                'ProgramCount': len(programs),
+                'NightCount': len(nights),
+                'WholeNights': len(whole_nights),
+                'PartialNights': len(partial_nights)}
+#         print(data)
+#         print(group)
+#         print(group.keys())
+#         print()
+        inst_nights.add_row(data)
     inst_nights.sort(keys=['NightCount'])
     inst_nights.reverse()
     print(inst_nights)
