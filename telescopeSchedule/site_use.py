@@ -257,7 +257,7 @@ def plot_site_use(nights, smoothing=1):
     pre_std_HQobserver_count = np.std(np.array(observer_counts['HQ'])[wpre])
 
     # Post-pandemic observer count
-    post_date_strings = ['2020-07-01', '2023-02-13']
+    post_date_strings = ['2022-07-01', '2024-04-30']
     post_dates = [datetime.strptime(post_date_strings[0], '%Y-%m-%d'),
                   datetime.strptime(post_date_strings[1], '%Y-%m-%d')]
     wpost = np.where((np.array(dates) >= post_dates[0]) & (np.array(dates) <= post_dates[1]))
@@ -363,7 +363,7 @@ def plot_site_use(nights, smoothing=1):
     sd_std_emissions = np.std(np.array(emissions)[wsd])
 
     # Post-pandemic emissions averages
-    post_date_strings = ['2021-07-02', '2023-02-13']
+    post_date_strings = ['2022-07-01', '2024-04-30']
     post_dates = [datetime.strptime(post_date_strings[0], '%Y-%m-%d'),
                   datetime.strptime(post_date_strings[1], '%Y-%m-%d')]
     wpost = np.where((np.array(dates) >= post_dates[0]) & (np.array(dates) <= post_dates[1]))
