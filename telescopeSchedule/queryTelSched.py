@@ -104,6 +104,35 @@ def get_schedule(date, tel):
     return result
 
 
+def get_all_kpf_programs():
+    '''
+    '''
+    months = ['2024-08-01', '2024-09-01', '2024-10-01', '2024-11-01',
+              '2024-12-01', '2025-01-01']
+    tel = 1
+    all_programs = []
+    kpf = []
+    for month in months:
+        req = f"cmd=getScheduleByMonth&date={month}&telnr={tel}"
+        result = querydb(req)
+        all_programs.extend(result)
+        print(f'Got {len(result)} results from schedule database')
+        kpf_result = [entry for entry in result if entry['Instrument'] == 'KPF']
+        print(f'Got {len(kpf_result)} KPF results from schedule database')
+        kpf.extend(kpf_result)
+    return kpf
+
+
+def show_number_of_KPF_nights_assigned(kpf):
+    results = {}
+    for entry in kpf:
+        if entry['ProjCode'] not in results.keys():
+            results[entry['ProjCode']] = []
+        results[entry['ProjCode']].append(f"{entry['StartTime']}-{entry['EndTime']}")
+    return results
+
+
+
 ##-------------------------------------------------------------------------
 ## Main Program: queryTelSched
 ##-------------------------------------------------------------------------
