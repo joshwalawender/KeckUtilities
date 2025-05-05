@@ -41,6 +41,7 @@ progID_names = {'Y': 'yale',
                 'W': 'swinburne', 
                 'Z': 'z',
                 'D': 'd',
+                'J': 'JWST',
                 }
 
 progID_city = {'yale': 'New York',
