@@ -182,7 +182,7 @@ def estimate_emissions(sched):
     travel = []
     emissions = []
     for entry in sched:
-        inst = progID_names[entry['ProjCode'][0]]
+        inst = progID_names[entry['ProjCode'][0].upper()]
         epp = progID_emissions[inst]
         if entry['HQ'] > 0 and epp > 0.001:
             travel.append(f"{entry['HQ']} x {progID_city[inst]}")
