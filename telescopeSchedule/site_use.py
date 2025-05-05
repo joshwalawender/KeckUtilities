@@ -317,6 +317,9 @@ def plot_site_use(nights, smoothing=1):
     v2 = datetime.strptime('2020-11-24', '%Y-%m-%d')
     plt.arrow(v2, 0, dx=0, dy=0.06, color='k')
     plt.annotate('v2.0', (v2, 0.07), color='k')
+    v3 = datetime.strptime('2023-11-19', '%Y-%m-%d')
+    plt.arrow(v3, 0, dx=0, dy=0.06, color='k')
+    plt.annotate('v3.0', (v3, 0.07), color='k')
 
     smoothed_observer_totals = np.convolve(observer_totals, smoothing_func, mode='same')
 
