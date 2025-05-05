@@ -41,11 +41,12 @@ progID_names = {'Y': 'yale',
                 'W': 'swinburne', 
                 'Z': 'z',
                 'D': 'd',
-                'J': 'JWST',
+                'J': 'jwst',
                 }
 
 progID_city = {'yale': 'New York',
                'nasa': 'City and County of Denver',
+               'jwst': 'City and County of Denver',
                'uc': 'San Francisco',
                'caltech': 'Los Angeles',
                'cit': 'Los Angeles',
