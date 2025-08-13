@@ -40,21 +40,17 @@ def get_semester_dates(date):
 def query_observatoryAPI(api, query, params, post=False):
     if api == 'proposal' and 'hash' not in params.keys():
         params['hash'] = os.getenv('APIHASH', default='')
-
     url_base = 'https://vm-appserver.keck.hawaii.edu/api'
-    url = {'proposal': f'{url_base}/proposals',
-           'schedule': f'{url_base}/schedule'}[api]
-
-    print(f"Running {api} API query: {url}{query}")
-    print(f"  Input params: {params}")
+    url = {'proposal': f'{url_base}/proposals/',
+           'schedule': f'{url_base}/schedule/'}[api]
+    # Submit query
     if post == False:
         r = requests.get(f"{url}{query}", params=params)
     else:
-        print('Using POST')
         r = requests.post(f"{url}{query}", json=params, verify=False)
+    # Parse result
     try:
         result = json.loads(r.text)
-        print(f"  Query result: {result}")
     except Exception as e:
         print(f'Failed to parse result:')
         print(r.text)
@@ -66,6 +62,16 @@ def query_observatoryAPI(api, query, params, post=False):
 ##-------------------------------------------------------------------------
 ## A few specific queries
 ##-------------------------------------------------------------------------
+def getSchedule(date=None, numdays=1, telnr=None):
+    if date is None:
+        now = datetime.datetime.now()
+        date = now.strftime('%Y-%m-%d')
+    params = {'date': date, 'numdays': str(numdays)}
+    if telnr is not None:
+        params['telnr'] = str(telnr)
+    return query_observatoryAPI('schedule', 'getSchedule', params)
+
+
 def getPI(semid):
     return query_observatoryAPI('proposal', 'getPI', {'semid': semid})
 
@@ -74,3 +80,14 @@ def getObserverInfo(observerID):
     return query_observatoryAPI('schedule', 'getObserverInfo', {'obsid': observerID})
 
 
+##-------------------------------------------------------------------------
+## For testing
+##-------------------------------------------------------------------------
+if __name__ == '__main__':
+    api = 'schedule'
+    query = 'getSchedule'
+    params = {'date': '2025-08-12',
+              'numdays': '1',
+              'telnr': '1',
+              }
+    query_observatoryAPI(api, query, params)
