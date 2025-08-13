@@ -3,11 +3,8 @@
 ## Import General Tools
 import argparse
 import datetime
-# from datetime import datetime as dt
-# from datetime import timedelta as tdelta
 
-# from telescopeSchedule.telescopeSchedule import *
-from utils.observatoryAPIs import get_semester_dates, getSchedule, getNightStaff, getObserverInfo
+from utils.observatoryAPIs import *
 
 
 ##-------------------------------------------------------------------------
