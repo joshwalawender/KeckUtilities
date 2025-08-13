@@ -1,9 +1,13 @@
 import os
 import datetime
+import yaml
 import json
 import requests
 import urllib3
 urllib3.disable_warnings() # We're going to do verify=False, so ignore warnings
+
+
+url_base = 'https://vm-appserver.keck.hawaii.edu'
 
 
 def get_semester_dates(date):
@@ -40,12 +44,11 @@ def get_semester_dates(date):
 def query_observatoryAPI(api, query, params, post=False):
     if api == 'proposals' and 'hash' not in params.keys():
         params['hash'] = os.getenv('APIHASH', default='')
-    url_base = 'https://vm-appserver.keck.hawaii.edu/api'
     # Submit query
     if post == False:
-        r = requests.get(f"{url_base}/{api}/{query}", params=params)
+        r = requests.get(f"{url_base}/api/{api}/{query}", params=params)
     else:
-        r = requests.post(f"{url_base}/{api}/{query}", json=params, verify=False)
+        r = requests.post(f"{url_base}/api/{api}/{query}", json=params, verify=False)
     # Parse result
     try:
         result = json.loads(r.text)
@@ -55,6 +58,13 @@ def query_observatoryAPI(api, query, params, post=False):
         print(e)
         result = None
     return result
+
+
+def get_routes(api):
+    url = f"{url_base}/{api}/swagger/{api}_api.yaml"
+    r = requests.get(url)
+    result = yaml.safe_load(r.text)
+    return [r[1:] for r in result.get('paths').keys()]
 
 
 ##-------------------------------------------------------------------------
