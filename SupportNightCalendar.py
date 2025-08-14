@@ -1,17 +1,18 @@
 #!/usr/env/python
 
 ## Import General Tools
-import sys
 from pathlib import Path
 from argparse import ArgumentParser
 import re
-from datetime import datetime as dt
-from datetime import timedelta as tdelta
+import datetime
+# from datetime import datetime as dt
+# from datetime import timedelta as tdelta
 
 import numpy as np
 from astropy.table import Table, Column, Row
 
-from telescopeSchedule.telescopeSchedule import *
+# from telescopeSchedule.telescopeSchedule import *
+from utils.observatoryAPIs import *
 
 
 zoomnrs = {1: 'https://keckobservatory.zoom.us/j/8088813714?pwd=eGM3aDhlMHdKd1F0LzY4N2kzSjhJdz09',
@@ -41,14 +42,6 @@ parser.add_argument('--calend',
     type=int, dest="calend",
     default='2359',
     help="End time of calendar entry in 24 hour format (e.g. 2359)")
-parser.add_argument('-f', '--file',
-    type=str, dest="file",
-    default='Nights.ics',
-    help="Filename (including path if desired) to write to")
-parser.add_argument('--telfile',
-    type=str, dest="telfile",
-    default='KeckSchedule.ics',
-    help="Filename for Keck Schedule")
 args = parser.parse_args()
 
 
@@ -70,10 +63,10 @@ class ICSFile(object):
                   location='', alarm=15, support=False,
                   verbose=False):
         assert type(title) is str
-        assert type(starttime) in [dt, str]
-        assert type(endtime) in [dt, str]
+        assert type(starttime) in [datetime.datetime, str]
+        assert type(endtime) in [datetime.datetime, str]
         assert type(description) in [list, str]
-        now = dt.utcnow()
+        now = datetime.datetime.utcnow()
         try:
             starttime = starttime.strftime('%Y%m%dT%H%M%S')
         except:
@@ -159,7 +152,7 @@ def calculate_twilights(date):
     return t
 
 
-def get_twilights(date):
+def old_get_twilights(date):
     """ Get twilight times from Keck API """
     url = f"https://www.keck.hawaii.edu/software/db_api/metrics.php?date={date}"
     r = requests.get(url)
@@ -247,6 +240,147 @@ def build_cal_info(date, entries):
 ## Main Program
 ##-------------------------------------------------------------------------
 def main():
+    # Get start and end times for scheduled query
+    if args.semester is not None:
+        try:
+            matched = re.match('S?(\d\d)([AB])', args.semester)
+            if matched is not None:
+                year = int(f"20{matched.group(1)}")
+                if matched.group(2) == 'A':
+                    from_dto = dt(year, 2, 1)
+                    end_dto = dt(year, 7, 31)
+                else:
+                    from_dto = dt(year, 8, 1)
+                    end_dto = dt(year+1, 1, 31)
+        except Exception as e:
+            print(f'Could not parse {args.semester}')
+            print(e)
+            return
+    elif args.start != '' and args.end != '':
+        from_dto = datetime.datetime.strptime(args.start, '%Y-%m-%d')
+        end_dto = datetime.datetime.strptime(args.end, '%Y-%m-%d')
+    else:
+        # Assume rest of this semester
+        from_dto = datetime.datetime.now()
+        semester, semstart, end_dto = get_semester_dates(from_dto)
+    delta = end_dto - from_dto
+    ndays = delta.days + 1
+
+    # Get support nights for this SA
+    nights = get_nights_for_SA(start_date=None, numdays=ndays, sa=args.sa)
+
+    ## Create Output iCal Files
+    ical_file = ICSFile('SupportNights.ics')
+    afternoon_ical_file = ICSFile('SupportAfternoons.ics')
+
+    night_count_by_month = {}
+    instrument_list = {}
+    split_night_count = 0
+    ##-------------------------------------------------------------------------
+    ## Iterate over nights and create calendar entries
+    ##-------------------------------------------------------------------------
+    for date, telnr in nights:
+        cancelled = getCancelledStatus(date)
+        if cancelled[f'K{telnr}'] != True:
+            schedule = getSchedule(date=date, numdays=1, telnr=telnr)
+            print(f"Found {len(schedule)} programs on {date} on K{telnr}")
+            twilights = getTwilights(date)
+            # In Keck API time is UT
+            h, m = twilights['sunset'].split(':')
+            twilights['sunset HST'] = f"{int(h)+14:02d}:{m}" # correct to HST
+
+            # Add to support statistics
+            month = date[:7]
+            if month not in night_count_by_month.keys():
+                night_count_by_month[month] = 0
+            night_count_by_month[month] += 1
+            if len(schedule) > 1:
+                split_night_count += 1
+
+            # Build Title for calendar entry
+            supporttype = 'Support' if len(schedule) == 1 else "Split Night Support"
+            instruments = [entry['Instrument'] for entry in schedule]
+            if len(set(instruments)) == 1:
+                caltitle = f"{instruments[0]} {supporttype}"
+            else:
+                caltitle = f"{'/'.join(instruments)} {supporttype}"
+#             print(caltitle)
+            # Build description text for calendar entry
+            description = [f"Sunset: {twilights['sunset']} UT",
+                           f"12deg:  {twilights['dusk_12deg']} UT",
+                           f"18deg:  {twilights['dusk_18deg']} UT",
+                           f"SA: {args.sa}",
+                           ]
+            for entry in schedule:
+                if entry['Instrument'] not in instrument_list.keys():
+                    # Whole Nights, Partial Nights
+                    instrument_list[entry['Instrument']] = [0, 0]
+                if entry["FractionOfNight"] == 1:
+                    instrument_list[entry['Instrument']][0] += 1
+                else:
+                    instrument_list[entry['Instrument']][1] += 1
+                
+                obslist = entry['Observers'].split(',')
+                loclist = entry['Location'].split(',')
+                try:
+                    observers = [f"{obs}({loclist[i]})" for i,obs in enumerate(obslist)]
+                except:
+                    observers = f"{obslist} / {loclist}"
+                description.append('')
+                description.append(f"Account: {entry['Account']}")
+                description.append(f"PI: {entry['Principal']}")
+                description.append(f"Observers: {', '.join(observers)}")
+                description.append(f"Start Time: {entry['StartTime']}")
+            description.append('')
+            description.append(f"18deg:  {twilights['dawn_18deg']} UT")
+            description.append(f"12deg:  {twilights['dawn_12deg']} UT")
+            description.append(f"Sunrise: {twilights['sunrise']} UT")
+            description.append('----')
+            description.append('Generated by SupportNightCalendar.py')
+
+            # Add afternoon support entry
+            inst_is_KPF = ['KPF' in iname for iname in instruments]
+            print(np.all(inst_is_KPF), instruments)
+            if np.all(inst_is_KPF) == False:
+                afternoon_ical_file.add_event(f'Afternoon Support',
+                                              f"{date.replace('-', '')}T150000",
+                                              f"{date.replace('-', '')}T170000",
+                                              description,
+                                              location=zoomnrs[telnr])
+            # Add night support entry
+            calstart = f"{twilights['udate'].replace('-', '')}"\
+                       f"T{twilights['sunset HST'].replace(':', '')}00"
+            calend = f"{date.replace('-', '')}T{args.calend:04d}00"
+            ical_file.add_event(caltitle, calstart, calend, description,
+                                location=zoomnrs[telnr], support=True)
+
+    ical_file.write()
+    afternoon_ical_file.write()
+
+    # Print summary to screen
+    night_count = len(nights)
+    print()
+    print(f"Found {night_count:d} / {ndays:d} nights ({100*night_count/ndays:.1f} %) where SA matches {args.sa:}")
+    print(f"Found {split_night_count:d} split nights")
+
+    print("Monthly distribution:")
+    nights_per_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    for key in night_count_by_month.keys():
+        nsupport = night_count_by_month[key]
+        monthint = int(key[5:])
+        nnights = nights_per_month[monthint-1]
+        frac = 100*nsupport/nnights
+        if nsupport > 0:
+            print(f"  For {key}: {nsupport:2d} / {nnights:2d} nights ({frac:4.1f} %)")
+
+    print("Instrument distribution:")
+    for instrument in sorted(instrument_list.keys()):
+        Nwhole = instrument_list[instrument][0]
+        Npartial = instrument_list[instrument][1]
+        print(f"  {instrument:10s}: {Nwhole+Npartial:2d} nights ({Nwhole} whole nights, {Npartial} partial nights)")
+
+
+def old_main():
     ## If semester is set, use that for start and end dates
     if args.semester is not None:
         try:

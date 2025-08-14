@@ -80,6 +80,21 @@ def getSchedule(date=None, numdays=1, telnr=None):
     return query_observatoryAPI('schedule', 'getSchedule', params)
 
 
+def getCancelledStatus(date):
+    params = {'date': date}
+    result = query_observatoryAPI('schedule', 'getObservingStatus', params)
+    k1status = [x['ObservingStatus'] for x in result if x['TelNr'] == 1][0]
+    k2status = [x['ObservingStatus'] for x in result if x['TelNr'] == 2][0]
+    cancelled = {'K1': k1status == 'cancelled',
+                 'K2': k2status == 'cancelled'}
+    return cancelled
+
+
+def getTwilights(date):
+    result = query_observatoryAPI('metrics', '', {'date': date})
+    return result[0]
+
+
 def getNightStaff(date=None, numdays=1, telnr=None, role='sa'):
     if date is None:
         now = datetime.datetime.now()
