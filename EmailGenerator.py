@@ -21,20 +21,6 @@ p.add_argument("--sa", dest="sa", type=str, default='jwalawender',
 args = p.parse_args()
 
 
-def get_nights_for_SA(start_date=None, numdays=7, sa='jwalawender'):
-    if start_date is None:
-        now = datetime.datetime.now()
-        date = now.strftime('%Y-%m-%d')
-    if numdays is None:
-        semester, semester_start, semester_end = get_semester_dates(now)
-        duration = semester_end-now
-        numdays = duration.days
-    sas = getNightStaff(date=start_date, numdays=numdays)
-    nights = [(entry['Date'], entry['TelNr']) for entry in sas if entry['Alias'] == sa]
-    nights = sorted(set(nights))
-    return nights
-
-
 def form_emails_for_date(date, telnr):
     schedule = getSchedule(date=date, numdays=1, telnr=telnr)
     print(f"# Found {len(schedule)} programs for {date} on K{telnr}:")
