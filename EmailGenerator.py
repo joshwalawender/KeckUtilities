@@ -60,9 +60,7 @@ def form_emails_for_date(date, telnr):
 
 
 def main():
-    if args.date is not None:
-        start_date = args.date
-    nights = get_nights_for_SA(start_date=None, numdays=7, sa=args.sa)
+    nights = get_nights_for_SA(start_date=args.date, numdays=7, sa=args.sa)
     for date, telnr in nights:
         form_emails_for_date(date, telnr)
 
