@@ -187,7 +187,7 @@ def main():
                     instrument_list[entry['Instrument']][0] += 1
                 else:
                     instrument_list[entry['Instrument']][1] += 1
-                
+
                 obslist = entry['Observers'].split(',')
                 loclist = entry['Location'].split(',')
                 try:
@@ -208,7 +208,6 @@ def main():
 
             # Add afternoon support entry
             inst_is_KPF = ['KPF' in iname for iname in instruments]
-            print(np.all(inst_is_KPF), instruments)
             if np.all(inst_is_KPF) == False:
                 afternoon_ical_file.add_event(f'Afternoon Support',
                                               f"{date.replace('-', '')}T150000",
