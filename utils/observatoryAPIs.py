@@ -6,6 +6,8 @@ import requests
 import urllib3
 urllib3.disable_warnings() # We're going to do verify=False, so ignore warnings
 
+# Human readbale API info at, for example:
+# https://vm-appserver.keck.hawaii.edu/api/schedule/swagger/#/
 
 url_base = 'https://vm-appserver.keck.hawaii.edu'
 
@@ -64,7 +66,11 @@ def get_routes(api):
     url = f"{url_base}/{api}/swagger/{api}_api.yaml"
     r = requests.get(url)
     result = yaml.safe_load(r.text)
-    return [r[1:] for r in result.get('paths').keys()]
+    try:
+        output = [r[1:] for r in result.get('paths').keys()]
+    except:
+        output = result
+    return output
 
 
 ##-------------------------------------------------------------------------
