@@ -115,11 +115,11 @@ def main():
             if matched is not None:
                 year = int(f"20{matched.group(1)}")
                 if matched.group(2) == 'A':
-                    from_dto = dt(year, 2, 1)
-                    end_dto = dt(year, 7, 31)
+                    from_dto = datetime.datetime(year, 2, 1)
+                    end_dto = datetime.datetime(year, 7, 31)
                 else:
-                    from_dto = dt(year, 8, 1)
-                    end_dto = dt(year+1, 1, 31)
+                    from_dto = datetime.datetime(year, 8, 1)
+                    end_dto = datetime.datetime(year+1, 1, 31)
         except Exception as e:
             print(f'Could not parse {args.semester}')
             print(e)
