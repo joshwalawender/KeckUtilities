@@ -119,6 +119,11 @@ def getObserverInfo(observerID):
     return query_observatoryAPI('schedule', 'getObserverInfo', {'obsid': observerID})
 
 
+def getInstrumentDates(instrument, start, end):
+    return query_observatoryAPI('schedule', 'getInstrumentDates',
+                               {'instrument': instrument,
+                                'startdate': start,
+                                'enddate': end})
 
 ##-------------------------------------------------------------------------
 ## Useful scripts
