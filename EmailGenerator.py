@@ -30,7 +30,7 @@ def form_emails_for_date(date, telnr):
         observer_names = []
         for observerID in observerIDs:
             obs = getObserverInfo(observerID)[0]
-            observer_names.append(f"{obs['FirstName']} {obs['LastName']}")
+            observer_names.append(f"{obs['FirstName']}")
             email_addresses.append(obs['Email'])
         print(f'Instrument: {entry["Instrument"]}')
         print()
