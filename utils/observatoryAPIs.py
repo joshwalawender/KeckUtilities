@@ -9,7 +9,7 @@ urllib3.disable_warnings() # We're going to do verify=False, so ignore warnings
 # Human readbale API info at, for example:
 # https://vm-appserver.keck.hawaii.edu/api/schedule/swagger/#/
 
-url_base = 'https://vm-appserver.keck.hawaii.edu'
+url_base = 'https://vm-suappserver.keck.hawaii.edu'
 
 
 def get_semester_dates(date):
