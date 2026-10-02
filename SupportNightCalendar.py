@@ -61,7 +61,8 @@ class ICSFile(object):
         assert type(starttime) in [datetime.datetime, str]
         assert type(endtime) in [datetime.datetime, str]
         assert type(description) in [list, str]
-        now = datetime.datetime.utcnow()
+#         now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         try:
             starttime = starttime.strftime('%Y%m%dT%H%M%S')
         except:
