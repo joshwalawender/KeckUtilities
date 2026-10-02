@@ -154,7 +154,7 @@ def main():
             print(f"Found {len(schedule)} programs on {date} on K{telnr}")
             twilights = getTwilights(date)
             # In Keck API time is UT
-            h, m = twilights['sunset'].split(':')
+            h, m, s = twilights['sunset'].split(':')
             twilights['sunset HST'] = f"{int(h)+14:02d}:{m}" # correct to HST
 
             # Add to support statistics

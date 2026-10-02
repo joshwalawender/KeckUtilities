@@ -97,8 +97,8 @@ def getCancelledStatus(date):
 
 
 def getTwilights(date):
-    result = query_observatoryAPI('metrics', '', {'date': date})
-    return result[0]
+    result = query_observatoryAPI('schedule', 'getTwilightData', {'date': date})
+    return result
 
 
 def getNightStaff(date=None, numdays=1, telnr=None, role='sa'):
