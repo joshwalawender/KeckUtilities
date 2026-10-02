@@ -216,7 +216,7 @@ def main():
                                               description,
                                               location=zoomnrs[telnr])
             # Add night support entry
-            calstart = f"{twilights['udate'].replace('-', '')}"\
+            calstart = f"{date.replace('-', '')}"\
                        f"T{twilights['sunset HST'].replace(':', '')}00"
             calend = f"{date.replace('-', '')}T{args.calend:04d}00"
             ical_file.add_event(caltitle, calstart, calend, description,
